@@ -1,8 +1,29 @@
 {
   "name": "dimes-demo-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Reference React + Vite frontend for the Dimes leveraged prediction markets API.",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/dimes-demo/dimes-demo-ui#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dimes-demo/dimes-demo-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dimes-demo/dimes-demo-ui/issues"
+  },
+  "keywords": [
+    "dimes",
+    "prediction-markets",
+    "polymarket",
+    "leverage",
+    "react",
+    "vite",
+    "wagmi",
+    "rainbowkit",
+    "polygon"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

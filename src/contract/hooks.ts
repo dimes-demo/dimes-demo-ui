@@ -25,12 +25,8 @@ const POLYGON_GAS_OVERRIDES = {
   maxFeePerGas: parseGwei('50'),
 } as const;
 
-const isTestnet = Number(import.meta.env.VITE_CHAIN_ID) === 80002;
-const USDC_ADDRESS = (
-  isTestnet
-    ? '0x5fb7b0527851267c1ab138cac8dbcd224b411135' // Mock USDC on Polygon Amoy
-    : '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359' // USDC on Polygon mainnet
-) as `0x${string}`;
+export const USDC_ADDRESS = ((import.meta.env.VITE_USDC_ADDRESS as string | undefined) ??
+  '0xD477EDbe627E94639d7E92119Ca62a461c6ce555') as `0x${string}`;
 
 export function useApproveUsdc() {
   const { writeContract, data: hash, isPending, error } = useWriteContract();

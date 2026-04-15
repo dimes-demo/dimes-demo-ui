@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
-import { useApproveUsdc, useCheckAllowance, useCreatePosition } from '../contract/hooks'
+import {
+  useApproveUsdc,
+  useCheckAllowance,
+  useCreatePosition,
+  USDC_ADDRESS,
+} from '../contract/hooks'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { LeverageSlider } from './LeverageSlider'
@@ -12,10 +17,6 @@ import { Field } from './ui/Field'
 import { Input } from './ui/Input'
 
 const PRESET_AMOUNTS = [50, 100, 500] as const
-
-const USDC_ADDRESS = (Number(import.meta.env.VITE_CHAIN_ID) === 80002
-  ? '0x5fb7b0527851267c1ab138cac8dbcd224b411135'
-  : '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359') as `0x${string}`
 
 export function TradePanel({
   market,

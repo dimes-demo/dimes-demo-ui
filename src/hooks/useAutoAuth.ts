@@ -1,29 +1,29 @@
 import { useEffect, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useAuthStore } from '../store/auth';
-import { requestAuthToken } from '../api/auth';
+import { DEMO_WALLET_ADDRESS, isDemoMode, requestAuthToken } from '../api/auth';
 
 const REFRESH_BUFFER_MS = 60_000;
-
-// Placeholder used to mint a sandbox token before the user connects a wallet
-// so the market list is visible on first load. The /demo-token endpoint
-// ignores this and pins the JWT to the fixed sandbox wallet.
-const ANONYMOUS_WALLET = '0x0000000000000000000000000000000000000000';
 
 /**
  * Keep a valid JWT in the auth store.
  *
- * Mints a sandbox token on mount so unauthenticated visitors can browse
- * markets, then re-mints against the connected wallet once one is present.
- * Refreshes 60s before expiry.
+ * In demo mode the token is scoped to the hardcoded demo wallet and is
+ * minted on mount so the market list is visible before wallet connect.
+ * In real mode the token tracks the connected wallet and is only minted
+ * once a wallet is present. Refreshes 60s before expiry in both cases.
  */
 export function useAutoAuth() {
   const { address, isConnected } = useAccount();
-  const { setAuth } = useAuthStore();
+  const { setAuth, clearAuth } = useAuthStore();
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    const effectiveAddress = isConnected && address ? address : ANONYMOUS_WALLET;
+    const effectiveAddress = isDemoMode
+      ? DEMO_WALLET_ADDRESS
+      : isConnected && address
+        ? address
+        : undefined;
 
     function clearTimer() {
       if (refreshTimer.current) {
@@ -40,6 +40,7 @@ export function useAutoAuth() {
     }
 
     function fetchToken() {
+      if (!effectiveAddress) return;
       requestAuthToken(effectiveAddress)
         .then((result) => {
           setAuth(result.token, effectiveAddress, result.expiresAt);
@@ -50,7 +51,13 @@ export function useAutoAuth() {
         });
     }
 
-    fetchToken();
+    if (effectiveAddress) {
+      fetchToken();
+    } else {
+      clearTimer();
+      clearAuth();
+    }
+
     return clearTimer;
-  }, [isConnected, address, setAuth]);
+  }, [isConnected, address, setAuth, clearAuth]);
 }
