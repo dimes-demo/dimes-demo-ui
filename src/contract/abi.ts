@@ -1,0 +1,73 @@
+export const vaultAbi = [
+  {
+    name: 'createPosition',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'positionSeed', type: 'bytes16' },
+      { name: 'marketId', type: 'bytes32' },
+      { name: 'tokenId', type: 'uint256' },
+      { name: 'collateralUsdcUnits', type: 'uint256' },
+      { name: 'leverageBps', type: 'uint32' },
+      { name: 'notionalUsdcUnits', type: 'uint256' },
+      { name: 'originationFeeBps', type: 'uint16' },
+      { name: 'lifetimeFeeAprBps', type: 'uint16' },
+      { name: 'liquidationFeeBps', type: 'uint16' },
+      { name: 'signature', type: 'bytes' },
+      { name: 'signatureExpiry', type: 'uint256' },
+    ],
+    outputs: [],
+  },
+  {
+    name: 'requestClose',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'positionKey', type: 'bytes32' }],
+    outputs: [],
+  },
+  // Errors
+  { type: 'error', name: 'InvalidSignature', inputs: [] },
+  { type: 'error', name: 'SignatureExpired', inputs: [{ name: 'expiry', type: 'uint256' }, { name: 'current', type: 'uint256' }] },
+  { type: 'error', name: 'InsufficientCapital', inputs: [] },
+  { type: 'error', name: 'InvalidLeverage', inputs: [{ name: 'leverageBps', type: 'uint32' }] },
+  { type: 'error', name: 'InvalidCollateral', inputs: [{ name: 'amountUsdcUnits', type: 'uint256' }] },
+  { type: 'error', name: 'CollateralBelowMinimum', inputs: [{ name: 'amountUsdcUnits', type: 'uint256' }, { name: 'minimumUsdcUnits', type: 'uint256' }] },
+  { type: 'error', name: 'InvalidNotional', inputs: [{ name: 'notionalUsdcUnits', type: 'uint256' }] },
+  { type: 'error', name: 'PositionAlreadyExists', inputs: [{ name: 'positionKey', type: 'bytes32' }] },
+  { type: 'error', name: 'UserCapitalExceeded', inputs: [{ name: 'user', type: 'address' }, { name: 'current', type: 'uint256' }, { name: 'requested', type: 'uint256' }, { name: 'max', type: 'uint256' }] },
+  { type: 'error', name: 'MarketCapitalExceeded', inputs: [{ name: 'marketId', type: 'bytes32' }, { name: 'current', type: 'uint256' }, { name: 'requested', type: 'uint256' }, { name: 'max', type: 'uint256' }] },
+  { type: 'error', name: 'TotalCapitalExceeded', inputs: [{ name: 'current', type: 'uint256' }, { name: 'requested', type: 'uint256' }, { name: 'max', type: 'uint256' }] },
+  { type: 'error', name: 'TokenCapitalExceeded', inputs: [{ name: 'tokenId', type: 'uint256' }, { name: 'current', type: 'uint256' }, { name: 'requested', type: 'uint256' }, { name: 'max', type: 'uint256' }] },
+  { type: 'error', name: 'NewPositionsPaused', inputs: [] },
+  { type: 'error', name: 'UserActionsPaused', inputs: [] },
+  { type: 'error', name: 'ServerHalted', inputs: [] },
+  { type: 'error', name: 'EmergencyOnlyMode', inputs: [] },
+  { type: 'error', name: 'SafeERC20FailedOperation', inputs: [{ name: 'token', type: 'address' }] },
+  { type: 'error', name: 'NotPositionOwner', inputs: [{ name: 'positionKey', type: 'bytes32' }, { name: 'caller', type: 'address' }, { name: 'owner', type: 'address' }] },
+  { type: 'error', name: 'InvalidPositionState', inputs: [{ name: 'positionKey', type: 'bytes32' }, { name: 'current', type: 'uint8' }, { name: 'expected', type: 'uint8' }] },
+  { type: 'error', name: 'PositionNotFound', inputs: [{ name: 'positionKey', type: 'bytes32' }] },
+  { type: 'error', name: 'ZeroAmount', inputs: [] },
+] as const;
+
+export const erc20Abi = [
+  {
+    name: 'approve',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'allowance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const;

@@ -1,0 +1,47 @@
+:root {
+  /* Surfaces */
+  --bg: #0C0C0C;
+  --card: #141414;
+  --card-elevated: #1a1a1a;
+  --card-border: #1e1e1e;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --surface-subtle: rgba(255, 255, 255, 0.04);
+
+  /* Text */
+  --text: #e8e8e8;
+  --text-muted: #888;
+  --text-dim: #555;
+
+  /* Accents */
+  --yellow: #EEFF00;
+  --yellow-ink: #0C0C0C;
+  --yellow-soft: rgba(238, 255, 0, 0.08);
+  --yellow-border: rgba(238, 255, 0, 0.2);
+  --green: #44FF97;
+  --green-soft: rgba(68, 255, 151, 0.08);
+  --green-border: rgba(68, 255, 151, 0.3);
+  --red: #E05252;
+  --red-soft: rgba(224, 82, 82, 0.08);
+  --red-border: rgba(224, 82, 82, 0.3);
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius: 8px;
+  --radius-lg: 12px;
+
+  /* Type scale */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 24px;
+
+  /* Font */
+  --font: 'Bai Jamjuree', sans-serif;
+
+  /* Layout */
+  --container-max: 960px;
+  --container-pad: clamp(16px, 4vw, 32px);
+}

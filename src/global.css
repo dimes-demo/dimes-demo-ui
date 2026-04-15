@@ -1,0 +1,210 @@
+@import url('https://fonts.googleapis.com/css2?family=Bai+Jamjuree:wght@400;500;600;700&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+   Shared layout primitives.
+   -------------------------------------------------------------------------- */
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--container-pad);
+}
+
+/* ---------------------------------------------------------------------------
+   Button primitives (see src/components/ui/Button.tsx).
+   -------------------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  line-height: 1;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--yellow);
+  color: var(--yellow-ink);
+  font-weight: 700;
+}
+
+.btn--primary:disabled {
+  background: #2a2a2a;
+  color: var(--text-dim);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--yellow);
+  border-color: var(--yellow-border);
+}
+
+.btn--ghost:disabled {
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+
+.btn--side-yes {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn--side-yes.is-active {
+  background: var(--green-soft);
+  color: var(--green);
+  border-color: var(--green-border);
+}
+
+.btn--side-no {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+}
+
+.btn--side-no.is-active {
+  background: var(--red-soft);
+  color: var(--red);
+  border-color: var(--red-border);
+}
+
+.btn--chip {
+  padding: 8px 12px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  border-color: var(--border);
+  border-radius: var(--radius);
+}
+
+.btn--chip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+.btn--full {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+   Field primitives (see src/components/ui/Field.tsx & Input.tsx).
+   -------------------------------------------------------------------------- */
+
+.field {
+  display: block;
+}
+
+.field__label {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.input-row {
+  display: flex;
+  align-items: center;
+  background: var(--card-elevated);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 0 12px;
+}
+
+.input-row:focus-within {
+  border-color: var(--border-strong);
+}
+
+.input-row__prefix {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  margin-right: 4px;
+}
+
+.input-row__suffix {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  background: var(--surface-subtle);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.input-row input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  padding: 12px 0;
+  min-width: 0;
+}
+
+.input-row input::placeholder {
+  color: var(--text-dim);
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile breakpoint.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .trade-panel {
+    max-width: none !important;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .header-row {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
