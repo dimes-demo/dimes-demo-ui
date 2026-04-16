@@ -3,7 +3,7 @@ import { fetchMarkets, searchMarkets } from '../api/markets';
 import type { Market } from '../api/types';
 import { useAuthStore } from '../store/auth';
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 15;
 
 export interface MarketsPage {
   data: Market[];

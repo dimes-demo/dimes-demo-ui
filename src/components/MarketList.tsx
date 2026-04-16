@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useMarkets } from '../hooks/useMarkets'
 import type { Market } from '../api/types'
 
@@ -28,7 +28,7 @@ export function MarketList({
   const [debouncedSearch, setDebouncedSearch] = useState(() => getQueryParam('q') ?? '')
   const [category, setCategoryState] = useState<string | undefined>(() => getQueryParam('category'))
   const [status, setStatusState] = useState<string | undefined>(() => getQueryParam('status'))
-  const [eligible, setEligibleState] = useState<string | undefined>(() => getQueryParam('eligible'))
+  const [eligible, setEligibleState] = useState<string | undefined>(() => getQueryParam('eligible') ?? 'yes')
   const [copiedTicker, setCopiedTicker] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -91,12 +91,10 @@ export function MarketList({
   const hasMore = page?.hasMore ?? false
   const hasPrev = cursorStack.length > 0
 
-  // Extract unique categories from the current page for the filter dropdown
-  const categories = useMemo(() => {
-    if (!markets) return []
-    const set = new Set(markets.map((m) => m.category).filter(Boolean))
-    return Array.from(set).sort()
-  }, [markets])
+  const categories = ['Sports', 'Crypto']
+
+  const formatCategory = (c: string) =>
+    c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
 
   const shouldScrollRef = useRef(false)
 
@@ -172,7 +170,7 @@ export function MarketList({
         >
           <option value="">All categories</option>
           {categories.map((c) => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c} value={c.toLowerCase()}>{formatCategory(c)}</option>
           ))}
         </select>
         <select
@@ -193,15 +191,13 @@ export function MarketList({
           style={{ ...inputStyle, flex: '0 0 auto', cursor: 'pointer' }}
         >
           <option value="">All eligibility</option>
-          <option value="yes">Accepting offers</option>
-          <option value="no">Not accepting offers</option>
+          <option value="yes">Accepting quotes</option>
+          <option value="no">Not accepting quotes</option>
         </select>
       </div>
 
       {isLoading ? (
-        <div style={{ padding: '48px 0', textAlign: 'center' }}>
-          <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>Loading markets...</span>
-        </div>
+        <MarketListSkeleton />
       ) : !markets || markets.length === 0 ? (
         <div style={{ padding: '48px 0', textAlign: 'center' }}>
           <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>
@@ -318,9 +314,21 @@ function MarketRow({
         transition: 'background 0.15s ease',
       }}
     >
-      <td style={tdStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>
+      <td style={{ ...tdStyle, maxWidth: 200 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span
+            title={market.ticker}
+            style={{
+              fontWeight: 600,
+              fontFamily: 'monospace',
+              fontSize: 12,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              flex: '1 1 auto',
+            }}
+          >
             {market.ticker}
           </span>
           <button
@@ -441,6 +449,55 @@ function MarketRow({
         ${market.minNotionalUsd}
       </td>
     </tr>
+  )
+}
+
+function MarketListSkeleton() {
+  const columns = [80, 240, 70, 70, 60, 50, 60, 60]
+  const rows = 15
+  const rowTdStyle: React.CSSProperties = {
+    padding: '12px 16px',
+    borderBottom: '1px solid rgba(255,255,255,0.04)',
+  }
+  return (
+    <div
+      style={{
+        border: '1px solid rgba(238,255,0,0.15)',
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: 'var(--card)',
+      }}
+    >
+      <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+        <tbody>
+          {Array.from({ length: rows }).map((_, r) => (
+            <tr key={r}>
+              {columns.map((w, c) => (
+                <td key={c} style={rowTdStyle}>
+                  <div
+                    style={{
+                      height: 10,
+                      width: w,
+                      maxWidth: '100%',
+                      borderRadius: 4,
+                      background: 'rgba(255,255,255,0.06)',
+                      animation: 'marketSkeletonPulse 1.4s ease-in-out infinite',
+                      animationDelay: `${(r * 40 + c * 20) % 600}ms`,
+                    }}
+                  />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <style>{`
+        @keyframes marketSkeletonPulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.75; }
+        }
+      `}</style>
+    </div>
   )
 }
 

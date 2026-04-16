@@ -210,6 +210,22 @@ export function isClosedPosition(p: Position): p is ClosedPosition {
   return 'result' in p;
 }
 
+// ── Unwind types ──
+
+export interface PositionUnwind {
+  beforeLeverageBps: number;
+  afterLeverageBps: number;
+  executedAt: string;
+}
+
+export interface PositionUnwindList {
+  data: PositionUnwind[];
+  hasMore: boolean;
+  originationLeverageBps: number;
+  currentLeverageBps: number;
+  originatedAt: string | null;
+}
+
 // ── Contract info ──
 
 export interface ContractInfo {

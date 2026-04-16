@@ -9,7 +9,7 @@ import { createConfig, http } from 'wagmi'
 import { polygon, polygonAmoy } from 'wagmi/chains'
 
 
-const isTestnet = Number(import.meta.env.VITE_CHAIN_ID) === 80002
+export const isTestnet = Number(import.meta.env.VITE_CHAIN_ID) === 80002
 const chain = isTestnet ? polygonAmoy : polygon
 
 // WalletConnect project ids are public identifiers — they ship in the client

@@ -5,6 +5,7 @@ import {
   useReadContract,
   usePublicClient,
   useAccount,
+  useChainId,
 } from 'wagmi';
 import { parseGwei, getAddress } from 'viem';
 import { vaultAbi, erc20Abi } from './abi';
@@ -15,15 +16,21 @@ import {
 import { useContractInfo } from '../hooks/useContractInfo';
 import type { Offer } from '../api/types';
 
+const POLYGON_AMOY_CHAIN_ID = 80002;
+
 // Wallet gas estimation on Polygon Amoy is unreliable — it frequently
 // underestimates and causes replaced/dropped transactions. We override with
-// generous explicit values to keep the demo flow reliable; production apps
-// should let the wallet estimate.
-const POLYGON_GAS_OVERRIDES = {
+// generous explicit values on testnet only; on mainnet we let the wallet estimate.
+const AMOY_GAS_OVERRIDES = {
   gas: 500_000n,
   maxPriorityFeePerGas: parseGwei('30'),
   maxFeePerGas: parseGwei('50'),
 } as const;
+
+function useGasOverrides() {
+  const chainId = useChainId();
+  return chainId === POLYGON_AMOY_CHAIN_ID ? AMOY_GAS_OVERRIDES : {};
+}
 
 export const USDC_ADDRESS = ((import.meta.env.VITE_USDC_ADDRESS as string | undefined) ??
   '0xD477EDbe627E94639d7E92119Ca62a461c6ce555') as `0x${string}`;
@@ -35,6 +42,7 @@ export function useApproveUsdc() {
   });
   const publicClient = usePublicClient();
   const { address: account } = useAccount();
+  const gasOverrides = useGasOverrides();
   const [simulateError, setSimulateError] = useState<string | null>(null);
 
   const approve = async (vaultAddress: string, amount: bigint) => {
@@ -55,7 +63,7 @@ export function useApproveUsdc() {
       return;
     }
 
-    writeContract({ ...params, ...POLYGON_GAS_OVERRIDES });
+    writeContract({ ...params, ...gasOverrides });
   };
 
   return { approve, hash, isPending, isConfirming, isSuccess, error, simulateError };
@@ -84,6 +92,7 @@ export function useCreatePosition() {
   const publicClient = usePublicClient();
   const { address: account } = useAccount();
   const { data: contractInfo } = useContractInfo();
+  const gasOverrides = useGasOverrides();
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
   const reset = () => {
@@ -148,7 +157,7 @@ export function useCreatePosition() {
       return;
     }
 
-    writeContract({ ...params, ...POLYGON_GAS_OVERRIDES });
+    writeContract({ ...params, ...gasOverrides });
   };
 
   return { create, hash, isPending, isConfirming, isSuccess, error, verifyError, reset };
@@ -159,6 +168,7 @@ export function useRequestClose() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
     hash,
   });
+  const gasOverrides = useGasOverrides();
 
   const requestClose = (vaultAddress: string, positionKey: string) => {
     writeContract({
@@ -166,7 +176,7 @@ export function useRequestClose() {
       abi: vaultAbi,
       functionName: 'requestClose',
       args: [positionKey as `0x${string}`],
-      ...POLYGON_GAS_OVERRIDES,
+      ...gasOverrides,
     });
   };
 

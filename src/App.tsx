@@ -36,10 +36,25 @@ function App() {
             {selectedMarket && (
               <div style={{ marginBottom: 24 }}>
                 <TradePanel
-                  key={selectedMarket.ticker}
                   market={selectedMarket}
                   onClose={() => setSelectedMarket(null)}
                 />
+              </div>
+            )}
+
+            {isConnected && (
+              <div style={{ marginBottom: 32 }}>
+                <h2
+                  style={{
+                    fontSize: 'var(--fs-md)',
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    marginBottom: 4,
+                  }}
+                >
+                  Your positions
+                </h2>
+                <PositionList />
               </div>
             )}
 
@@ -56,22 +71,6 @@ function App() {
               </h2>
               <MarketList onSelectMarket={setSelectedMarket} />
             </div>
-
-            {isConnected && (
-              <div style={{ marginTop: 32 }}>
-                <h2
-                  style={{
-                    fontSize: 'var(--fs-md)',
-                    fontWeight: 600,
-                    color: 'var(--text)',
-                    marginBottom: 4,
-                  }}
-                >
-                  Your positions
-                </h2>
-                <PositionList />
-              </div>
-            )}
           </>
         )}
       </main>

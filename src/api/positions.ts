@@ -1,5 +1,5 @@
 import { apiFetch, apiFetchList } from './client';
-import type { ContractInfo, Position } from './types';
+import type { ContractInfo, Position, PositionUnwindList } from './types';
 
 interface FetchPositionsParams {
   sortBy?: string;
@@ -27,4 +27,10 @@ export async function cancelPosition(positionId: string): Promise<void> {
 
 export async function fetchContractInfo(): Promise<ContractInfo> {
   return apiFetch<ContractInfo>('/v1/prediction-markets/contract-info');
+}
+
+export async function fetchPositionUnwinds(positionId: string): Promise<PositionUnwindList> {
+  return apiFetch<PositionUnwindList>(
+    `/v1/prediction-markets/positions/${encodeURIComponent(positionId)}/unwinds`,
+  );
 }

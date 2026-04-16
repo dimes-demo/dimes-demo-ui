@@ -1,18 +1,22 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { OpenPosition } from '../api/types'
+import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
+import { usePositionUnwinds } from '../hooks/usePositionUnwinds'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { HealthRing } from './HealthRing'
+import { LeverageChart } from './LeverageChart'
 
 export function PositionCard({ position }: { position: OpenPosition }) {
   const queryClient = useQueryClient()
   const cancelMutation = useCancelPosition()
   const { data: contractInfo } = useContractInfo()
+  const { data: unwindData, isLoading: isUnwindsLoading } = usePositionUnwinds(position.id)
   const { requestClose, isPending: isCloseSigning, isConfirming: isCloseConfirming, isSuccess: isCloseConfirmed, error: closeChainError } = useRequestClose()
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export function PositionCard({ position }: { position: OpenPosition }) {
 
   const isPendingPosition = position.status === 'pending'
   const isOpenPosition = position.status === 'open'
-  const canAct = isPendingPosition || isOpenPosition
+  const canAct = (isPendingPosition || isOpenPosition) && !isDemoMode
 
   const isBusy =
     cancelMutation.isPending || isCloseSigning || isCloseConfirming
@@ -197,6 +201,11 @@ export function PositionCard({ position }: { position: OpenPosition }) {
         />
         <StatRow label="Time to Resolution" value={timeDisplay} />
         <StatRow label="Market Status" value={position.timing.marketStatus} />
+
+        {/* Leverage History Chart */}
+        <div style={{ marginTop: 16 }}>
+          <LeverageChart unwinds={unwindData} isLoading={isUnwindsLoading} />
+        </div>
 
         {/* Action button */}
         {canAct && (

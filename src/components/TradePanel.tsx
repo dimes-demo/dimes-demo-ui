@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
@@ -62,6 +62,18 @@ export function TradePanel({
   const canCreate = hasAllowance || approveSuccess
 
   const canGetQuote = isConnected && collateralUsd && Number(collateralUsd) > 0
+
+  const [isOfferExpired, setIsOfferExpired] = useState(false)
+  useEffect(() => {
+    if (!offer) {
+      setIsOfferExpired(false)
+      return
+    }
+    const check = () => setIsOfferExpired(new Date(offer.expiresAt).getTime() <= Date.now())
+    check()
+    const interval = setInterval(check, 500)
+    return () => clearInterval(interval)
+  }, [offer])
 
   const updateCollateral = (next: string) => {
     setCollateralUsd(next)

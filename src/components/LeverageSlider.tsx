@@ -17,7 +17,7 @@ export function LeverageSlider({
   }
 
   const pct = ((value - min) / (max - min)) * 100
-  const displayValue = (value / 10000).toFixed(1).replace(/\.0$/, '')
+  const displayValue = (value / 10000).toFixed(2)
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -146,10 +146,10 @@ export function LeverageSlider({
         }}
       >
         <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-          {(min / 10000).toFixed(0)}x
+          {(min / 10000).toFixed(2)}x
         </span>
         <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-          {(max / 10000).toFixed(0)}x
+          {(max / 10000).toFixed(2)}x
         </span>
       </div>
     </div>

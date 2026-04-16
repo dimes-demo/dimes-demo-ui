@@ -83,27 +83,6 @@ export function SettledCard({ position }: { position: ClosedPosition }) {
           value={`$${position.result.proceedsUsd}`}
           valueColor={pnlColor}
         />
-
-        {/* Settlement link */}
-        <button
-          onClick={() => { /* no-op for now */ }}
-          style={{
-            width: '100%',
-            padding: '10px 0',
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-dim)',
-            fontSize: 12,
-            cursor: 'pointer',
-            fontFamily: 'var(--font)',
-            marginTop: 12,
-            transition: 'color 0.15s ease',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-dim)' }}
-        >
-          View full settlement details →
-        </button>
       </div>
     </CardShell>
   )

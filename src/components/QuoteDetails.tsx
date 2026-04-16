@@ -1,18 +1,24 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { Offer } from '../api/types'
 import { StatRow } from './StatRow'
 
 export function QuoteDetails({ offer }: { offer: Offer }) {
+  const expiresAtMs = useMemo(() => new Date(offer.expiresAt).getTime(), [offer.expiresAt])
+  const totalSeconds = useMemo(
+    () => Math.max(1, Math.round((expiresAtMs - Date.now()) / 1000)),
+    [expiresAtMs],
+  )
+
   const [secondsLeft, setSecondsLeft] = useState(() =>
-    Math.max(0, Math.round((new Date(offer.expiresAt).getTime() - Date.now()) / 1000))
+    Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000)),
   )
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setSecondsLeft(Math.max(0, Math.round((new Date(offer.expiresAt).getTime() - Date.now()) / 1000)))
+      setSecondsLeft(Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000)))
     }, 1000)
     return () => clearInterval(interval)
-  }, [offer.expiresAt])
+  }, [expiresAtMs])
 
   return (
     <div style={{ padding: '12px 0' }}>
@@ -92,16 +98,83 @@ export function QuoteDetails({ offer }: { offer: Offer }) {
         valueColor="#EEFF00"
       />
 
-      {/* Expiry countdown */}
+      <QuoteExpiryBar secondsLeft={secondsLeft} totalSeconds={totalSeconds} />
+    </div>
+  )
+}
+
+function QuoteExpiryBar({
+  secondsLeft,
+  totalSeconds,
+}: {
+  secondsLeft: number
+  totalSeconds: number
+}) {
+  const pct = Math.max(0, Math.min(1, secondsLeft / totalSeconds))
+  const expired = secondsLeft <= 0
+  const urgent = secondsLeft > 0 && secondsLeft <= Math.max(3, Math.floor(totalSeconds / 3))
+
+  const barColor = expired
+    ? 'rgba(255,255,255,0.15)'
+    : urgent
+      ? '#F5A623'
+      : 'var(--yellow)'
+  const labelColor = expired
+    ? 'var(--text-dim)'
+    : urgent
+      ? '#F5A623'
+      : 'var(--text-muted)'
+
+  return (
+    <div style={{ marginTop: 14 }}>
       <div
         style={{
-          marginTop: 12,
-          fontSize: 11,
-          color: secondsLeft < 30 ? 'var(--red)' : 'var(--text-dim)',
-          textAlign: 'center',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: 6,
         }}
       >
-        Quote expires in {secondsLeft}s
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: labelColor,
+          }}
+        >
+          {expired ? 'Quote expired' : 'Quote valid'}
+        </span>
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            fontVariantNumeric: 'tabular-nums',
+            color: labelColor,
+          }}
+        >
+          {expired ? '0s' : `${secondsLeft}s`}
+        </span>
+      </div>
+      <div
+        style={{
+          height: 3,
+          width: '100%',
+          background: 'rgba(255,255,255,0.06)',
+          borderRadius: 2,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${pct * 100}%`,
+            background: barColor,
+            borderRadius: 2,
+            transition: 'width 1s linear, background 0.3s ease',
+          }}
+        />
       </div>
     </div>
   )
