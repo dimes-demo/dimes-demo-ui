@@ -2,13 +2,14 @@ import { useState, useEffect, useMemo } from 'react'
 import type { Offer } from '../api/types'
 import { StatRow } from './StatRow'
 
-export function QuoteDetails({ offer }: { offer: Offer }) {
+export function QuoteDetails({ offer, hideExpiry = false }: { offer: Offer; hideExpiry?: boolean }) {
   const expiresAtMs = useMemo(() => new Date(offer.expiresAt).getTime(), [offer.expiresAt])
-  const totalSeconds = useMemo(
-    () => Math.max(1, Math.round((expiresAtMs - Date.now()) / 1000)),
-    [expiresAtMs],
-  )
 
+  // Captured once per offer so the progress-bar denominator stays stable as
+  // secondsLeft ticks down. Date.now() would be impure inside useMemo.
+  const [totalSeconds] = useState(() =>
+    Math.max(1, Math.round((expiresAtMs - Date.now()) / 1000)),
+  )
   const [secondsLeft, setSecondsLeft] = useState(() =>
     Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000)),
   )
@@ -98,7 +99,7 @@ export function QuoteDetails({ offer }: { offer: Offer }) {
         valueColor="#EEFF00"
       />
 
-      <QuoteExpiryBar secondsLeft={secondsLeft} totalSeconds={totalSeconds} />
+      {!hideExpiry && <QuoteExpiryBar secondsLeft={secondsLeft} totalSeconds={totalSeconds} />}
     </div>
   )
 }

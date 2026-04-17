@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
@@ -29,6 +30,7 @@ export function TradePanel({
   const [collateralUsd, setCollateralUsd] = useState('')
   const [leverageBps, setLeverageBps] = useState(market.leverage.minBps)
 
+  const queryClient = useQueryClient()
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
     address,
@@ -62,6 +64,12 @@ export function TradePanel({
   const canCreate = hasAllowance || approveSuccess
 
   const canGetQuote = isConnected && collateralUsd && Number(collateralUsd) > 0
+
+  useEffect(() => {
+    if (createSuccess) {
+      queryClient.invalidateQueries({ queryKey: ['positions'] })
+    }
+  }, [createSuccess, queryClient])
 
   const [isOfferExpired, setIsOfferExpired] = useState(false)
   useEffect(() => {
@@ -258,7 +266,9 @@ export function TradePanel({
           onDismiss={() => {}}
         />
 
-        {offer && <QuoteDetails offer={offer} />}
+        {offerLoading && !offer && <QuoteSkeleton />}
+
+        {offer && <QuoteDetails offer={offer} hideExpiry={createSuccess} />}
 
         {offer && !createSuccess && (
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -267,7 +277,7 @@ export function TradePanel({
                 variant="ghost"
                 fullWidth
                 onClick={handleApprove}
-                disabled={approvePending || approveConfirming}
+                disabled={approvePending || approveConfirming || isOfferExpired}
               >
                 {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
               </Button>
@@ -276,9 +286,15 @@ export function TradePanel({
               variant="primary"
               fullWidth
               onClick={handleCreate}
-              disabled={!canCreate || createPending || createConfirming}
+              disabled={!canCreate || createPending || createConfirming || isOfferExpired}
             >
-              {createConfirming ? 'Confirming…' : createPending ? 'Creating…' : 'Create position'}
+              {isOfferExpired
+                ? 'Quote expired'
+                : createConfirming
+                  ? 'Confirming…'
+                  : createPending
+                    ? 'Creating…'
+                    : 'Create position'}
             </Button>
           </div>
         )}
@@ -302,5 +318,91 @@ export function TradePanel({
         )}
       </div>
     </CardShell>
+  )
+}
+
+function QuoteSkeleton() {
+  const rowWidths = [72, 92, 84, 110, 96, 88]
+  return (
+    <div style={{ padding: '12px 0', marginTop: 4 }}>
+      <div
+        style={{
+          height: 12,
+          width: 110,
+          borderRadius: 4,
+          background: 'rgba(255,255,255,0.08)',
+          marginBottom: 14,
+          animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
+        }}
+      />
+      {rowWidths.map((w, i) => (
+        <div
+          key={i}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '9px 0',
+            borderBottom: '1px solid rgba(255,255,255,0.04)',
+          }}
+        >
+          <div
+            style={{
+              height: 10,
+              width: 74,
+              borderRadius: 4,
+              background: 'rgba(255,255,255,0.05)',
+              animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
+              animationDelay: `${i * 60}ms`,
+            }}
+          />
+          <div
+            style={{
+              height: 10,
+              width: w,
+              borderRadius: 4,
+              background: 'rgba(238,255,0,0.08)',
+              animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
+              animationDelay: `${i * 60 + 120}ms`,
+            }}
+          />
+        </div>
+      ))}
+      <div style={{ marginTop: 14 }}>
+        <div
+          style={{
+            height: 3,
+            width: '100%',
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: 2,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              height: '100%',
+              width: '30%',
+              background: 'var(--yellow)',
+              borderRadius: 2,
+              animation: 'quoteSkeletonSlide 1.4s ease-in-out infinite',
+            }}
+          />
+        </div>
+      </div>
+      <style>{`
+        @keyframes quoteSkeletonPulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 0.75; }
+        }
+        @keyframes quoteSkeletonSlide {
+          0% { transform: translateX(-120%); }
+          100% { transform: translateX(420%); }
+        }
+      `}</style>
+    </div>
   )
 }

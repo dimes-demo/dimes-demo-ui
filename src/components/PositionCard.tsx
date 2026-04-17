@@ -76,6 +76,71 @@ export function PositionCard({ position }: { position: OpenPosition }) {
   return (
     <CardShell variant="yellow">
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
+        {isPendingPosition && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'rgba(245,166,35,0.08)',
+              border: '1px solid rgba(245,166,35,0.22)',
+              borderRadius: 8,
+              padding: '10px 12px',
+              marginBottom: 16,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: '#F5A623',
+                animation: 'pendingPulse 1.1s ease-in-out infinite',
+                flexShrink: 0,
+              }}
+            />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 12, color: '#F5A623', fontWeight: 600 }}>
+                Finalizing on-chain
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Waiting for the vault to confirm your position…
+              </div>
+            </div>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 2,
+                background: 'rgba(245,166,35,0.15)',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: '40%',
+                  background: '#F5A623',
+                  animation: 'pendingSlide 1.6s ease-in-out infinite',
+                }}
+              />
+            </div>
+            <style>{`
+              @keyframes pendingPulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.4; transform: scale(0.85); }
+              }
+              @keyframes pendingSlide {
+                0% { transform: translateX(-100%); }
+                100% { transform: translateX(250%); }
+              }
+            `}</style>
+          </div>
+        )}
         {/* Header */}
         <div
           style={{
