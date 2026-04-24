@@ -54,7 +54,7 @@ export function Hero() {
       >
         <ConnectButton label="Connect wallet to trade" />
         <a
-          href="https://dimes.fi"
+          href="https://docs.dimes.fi"
           target="_blank"
           rel="noreferrer"
           className="btn btn--ghost"

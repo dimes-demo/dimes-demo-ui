@@ -315,10 +315,10 @@ export function PositionCard({
         {viewMode === 'simple' ? (
           <div style={{ animation: 'fadeIn 0.2s ease' }}>
             <PnlHero
-              label="Net PnL · after fees"
-              value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)}`}
-              pctValue={`${netPnlPrefix}${netRoePct.toFixed(1)}%`}
-              color={netPnlColor}
+              label="PnL"
+              value={`${pnlPrefix}$${Math.abs(pnlValue).toFixed(2)}`}
+              pctValue={`${pnlPrefix}${roePct}%`}
+              color={pnlColor}
             />
 
             {/* Glance grid */}

@@ -69,7 +69,13 @@ function App() {
               >
                 Markets
               </h2>
-              <MarketList onSelectMarket={setSelectedMarket} />
+              <MarketList
+                onSelectMarket={(m) => {
+                  setSelectedMarket(m)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                selectedMarketId={selectedMarket?.id ?? null}
+              />
             </div>
           </>
         )}

@@ -23,7 +23,12 @@ export function useMarkets(
     queryKey: ['markets', { category, search, status, acceptingNewPositions, startingAfter }],
     queryFn: async () => {
       if (search) {
-        const data = await searchMarkets(search);
+        const data = await searchMarkets({
+          query: search,
+          category: category || undefined,
+          status: status || undefined,
+          acceptingNewPositions,
+        });
         return { data, hasMore: false };
       }
       return fetchMarkets({

@@ -22,8 +22,10 @@ function setQueryParams(params: Record<string, string | undefined>) {
 
 export function MarketList({
   onSelectMarket,
+  selectedMarketId,
 }: {
   onSelectMarket: (market: Market) => void
+  selectedMarketId?: string | null
 }) {
   const [search, setSearch] = useState(() => getQueryParam('q') ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(() => getQueryParam('q') ?? '')
@@ -97,7 +99,7 @@ export function MarketList({
   const hasMore = page?.hasMore ?? false
   const hasPrev = cursorStack.length > 0
 
-  const categories = ['Sports', 'Crypto']
+  const categories = ['Sport', 'Crypto']
 
   const formatCategory = (c: string) =>
     c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
@@ -273,11 +275,9 @@ export function MarketList({
                   <th style={thStyle}>Ticker</th>
                   <th style={thStyle}>Title</th>
                   <th style={thStyle}>Category</th>
-                  <th style={thStyle}>Provider</th>
                   <th style={thStyle}>Status</th>
                   <th style={thStyle}>Eligible</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>Max Leverage</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Min Notional</th>
                 </tr>
               </thead>
               <tbody>
@@ -288,6 +288,7 @@ export function MarketList({
                     onSelect={onSelectMarket}
                     onCopy={copyTicker}
                     isCopied={copiedTicker === market.ticker}
+                    isSelected={selectedMarketId === market.id}
                   />
                 ))}
               </tbody>
@@ -333,14 +334,25 @@ function MarketRow({
   onSelect,
   onCopy,
   isCopied,
+  isSelected,
 }: {
   market: Market
   onSelect: (market: Market) => void
   onCopy: (ticker: string) => void
   isCopied: boolean
+  isSelected: boolean
 }) {
   const [hovered, setHovered] = useState(false)
+  const [pressed, setPressed] = useState(false)
   const maxLeverage = (market.leverage.maxBps / 10000).toFixed(0)
+
+  const rowBg = isSelected
+    ? 'rgba(238,255,0,0.09)'
+    : pressed
+    ? 'rgba(238,255,0,0.14)'
+    : hovered
+    ? 'rgba(238,255,0,0.03)'
+    : 'transparent'
 
   const tdStyle: React.CSSProperties = {
     padding: '12px 16px',
@@ -348,20 +360,32 @@ function MarketRow({
     color: 'var(--text)',
     whiteSpace: 'nowrap',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
+    transition: 'background 0.18s ease, box-shadow 0.18s ease',
+  }
+
+  const firstTdStyle: React.CSSProperties = {
+    ...tdStyle,
+    maxWidth: 200,
+    boxShadow: isSelected ? 'inset 3px 0 0 var(--yellow)' : 'none',
   }
 
   return (
     <tr
       onClick={() => onSelect(market)}
       onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseLeave={() => {
+        setHovered(false)
+        setPressed(false)
+      }}
+      onMouseDown={() => setPressed(true)}
+      onMouseUp={() => setPressed(false)}
       style={{
         cursor: 'pointer',
-        background: hovered ? 'rgba(238,255,0,0.03)' : 'transparent',
-        transition: 'background 0.15s ease',
+        background: rowBg,
+        transition: 'background 0.18s ease',
       }}
     >
-      <td style={{ ...tdStyle, maxWidth: 200 }}>
+      <td style={firstTdStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span
             title={market.ticker}
@@ -374,6 +398,7 @@ function MarketRow({
               whiteSpace: 'nowrap',
               minWidth: 0,
               flex: '1 1 auto',
+              color: isSelected ? 'var(--yellow)' : undefined,
             }}
           >
             {market.ticker}
@@ -427,9 +452,6 @@ function MarketRow({
             {market.category}
           </span>
         )}
-      </td>
-      <td style={{ ...tdStyle, fontSize: 12, color: 'var(--text-muted)' }}>
-        {market.provider}
       </td>
       <td style={tdStyle}>
         <span
@@ -492,15 +514,12 @@ function MarketRow({
       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--yellow)' }}>
         {maxLeverage}x
       </td>
-      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>
-        ${market.minNotionalUsd}
-      </td>
     </tr>
   )
 }
 
 function MarketListSkeleton() {
-  const columns = [80, 240, 70, 70, 60, 50, 60, 60]
+  const columns = [80, 240, 70, 60, 50, 60]
   const rows = 15
   const rowTdStyle: React.CSSProperties = {
     padding: '12px 16px',

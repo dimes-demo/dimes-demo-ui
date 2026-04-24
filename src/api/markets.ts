@@ -28,10 +28,22 @@ export async function fetchMarkets(params?: FetchMarketsParams): Promise<FetchMa
   return apiFetchListWithPagination<Market>(`/v1/prediction-markets/markets${qs ? `?${qs}` : ''}`);
 }
 
+export interface SearchMarketsParams {
+  query: string;
+  category?: string;
+  status?: string;
+  acceptingNewPositions?: boolean;
+}
+
 /** Search markets by title, ticker, or token ID */
-export async function searchMarkets(query: string): Promise<Market[]> {
-  const qs = new URLSearchParams({ query }).toString();
-  return apiFetchList<Market>(`/v1/prediction-markets/markets/search?${qs}`);
+export async function searchMarkets(params: SearchMarketsParams): Promise<Market[]> {
+  const searchParams = new URLSearchParams({ query: params.query });
+  if (params.category) searchParams.set('category', params.category);
+  if (params.status) searchParams.set('status', params.status);
+  if (params.acceptingNewPositions !== undefined) {
+    searchParams.set('accepting_new_positions', String(params.acceptingNewPositions));
+  }
+  return apiFetchList<Market>(`/v1/prediction-markets/markets/search?${searchParams.toString()}`);
 }
 
 /** Fetch a single market by ticker */
