@@ -11,13 +11,61 @@ export function LeverageSlider({
   value: number
   onChange: (value: number) => void
 }) {
+  const maxSteps = Math.max(0, Math.floor((max - min) / step))
+  const effectiveMax = min + maxSteps * step
   const steps: number[] = []
-  for (let v = min; v <= max; v += step) {
-    steps.push(v)
+  for (let i = 0; i <= maxSteps; i++) {
+    steps.push(min + i * step)
   }
 
-  const pct = ((value - min) / (max - min)) * 100
+  const snap = (v: number) => {
+    const clamped = Math.min(Math.max(v, min), effectiveMax)
+    const k = Math.round((clamped - min) / step)
+    return min + Math.min(Math.max(k, 0), maxSteps) * step
+  }
+
+  const range = effectiveMax - min
+  const pct = range > 0 ? ((value - min) / range) * 100 : 0
   const displayValue = (value / 10000).toFixed(2)
+
+  if (maxSteps === 0) {
+    return (
+      <div style={{ padding: '8px 0' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 16px',
+            borderRadius: 'var(--radius)',
+            background: 'var(--card-elevated)',
+            border: '1px solid rgba(238,255,0,0.15)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Leverage</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
+              Fixed for this market
+            </span>
+          </div>
+          <span
+            style={{
+              color: 'var(--yellow)',
+              fontSize: 20,
+              fontWeight: 700,
+              fontFamily: 'var(--font)',
+              padding: '4px 12px',
+              borderRadius: 999,
+              background: 'rgba(238,255,0,0.08)',
+              border: '1px solid rgba(238,255,0,0.25)',
+            }}
+          >
+            {displayValue}x
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ padding: '8px 0' }}>
@@ -76,7 +124,7 @@ export function LeverageSlider({
 
         {/* Dots */}
         {steps.map((s) => {
-          const dotPct = ((s - min) / (max - min)) * 100
+          const dotPct = range > 0 ? ((s - min) / range) * 100 : 50
           const isActive = s <= value
           return (
             <div
@@ -119,10 +167,10 @@ export function LeverageSlider({
         <input
           type="range"
           min={min}
-          max={max}
+          max={effectiveMax}
           step={step}
           value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          onChange={(e) => onChange(snap(Number(e.target.value)))}
           style={{
             position: 'absolute',
             top: 0,
@@ -149,7 +197,7 @@ export function LeverageSlider({
           {(min / 10000).toFixed(2)}x
         </span>
         <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-          {(max / 10000).toFixed(2)}x
+          {(effectiveMax / 10000).toFixed(2)}x
         </span>
       </div>
     </div>

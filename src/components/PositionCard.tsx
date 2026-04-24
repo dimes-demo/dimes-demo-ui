@@ -1,23 +1,41 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import {
+  MicroStat,
+  PnlHero,
+  StatGroup,
+  ViewToggle,
+  fadeInKeyframes,
+  useViewMode,
+} from './CardViewParts'
 import { useQueryClient } from '@tanstack/react-query'
-import type { OpenPosition } from '../api/types'
+import type { OpenPosition, PositionUnwindList } from '../api/types'
 import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
-import { usePositionUnwinds } from '../hooks/usePositionUnwinds'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { HealthRing } from './HealthRing'
 import { LeverageChart } from './LeverageChart'
 
-export function PositionCard({ position }: { position: OpenPosition }) {
+export function PositionCard({
+  position,
+  unwinds,
+  isUnwindsLoading = false,
+}: {
+  position: OpenPosition
+  unwinds?: PositionUnwindList
+  isUnwindsLoading?: boolean
+}) {
   const queryClient = useQueryClient()
   const cancelMutation = useCancelPosition()
   const { data: contractInfo } = useContractInfo()
-  const { data: unwindData, isLoading: isUnwindsLoading } = usePositionUnwinds(position.id)
+  const unwindData = unwinds
   const { requestClose, isPending: isCloseSigning, isConfirming: isCloseConfirming, isSuccess: isCloseConfirmed, error: closeChainError } = useRequestClose()
+
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useViewMode('positionCard.viewMode')
 
   useEffect(() => {
     if (isCloseConfirmed) {
@@ -25,8 +43,20 @@ export function PositionCard({ position }: { position: OpenPosition }) {
     }
   }, [isCloseConfirmed, queryClient])
 
+  const copyToClipboard = (value: string, key: string) => {
+    navigator.clipboard.writeText(value)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
+  }
+
+  const truncateMiddle = (value: string, head = 8, tail = 6) =>
+    value.length <= head + tail + 1 ? value : `${value.slice(0, head)}…${value.slice(-tail)}`
+
   const isPendingPosition = position.status === 'pending'
   const isOpenPosition = position.status === 'open'
+  const isClosingPosition = position.status === 'closing'
+  const isSettlingPosition = position.status === 'settling'
+  const isInFlight = isPendingPosition || isClosingPosition || isSettlingPosition
   const canAct = (isPendingPosition || isOpenPosition) && !isDemoMode
 
   const isBusy =
@@ -64,6 +94,15 @@ export function PositionCard({ position }: { position: OpenPosition }) {
   const pnlPrefix = pnlValue >= 0 ? '+' : ''
   const roePct = (position.current.unrealizedPnlBps / 100).toFixed(1)
 
+  const accruedFees =
+    parseFloat(position.fees.accruedLifetimeFeeUsd) +
+    parseFloat(position.fees.pendingLifetimeFeeUsd)
+  const netPnlValue = pnlValue - accruedFees
+  const netPnlColor = netPnlValue >= 0 ? 'var(--green)' : 'var(--red)'
+  const netPnlPrefix = netPnlValue >= 0 ? '+' : ''
+  const entryCollateral = parseFloat(position.entry.collateralUsd)
+  const netRoePct = entryCollateral > 0 ? (netPnlValue / entryCollateral) * 100 : 0
+
   const timeToClose = position.timing.timeToCloseMinutes
   let timeDisplay = '—'
   if (timeToClose != null) {
@@ -76,7 +115,7 @@ export function PositionCard({ position }: { position: OpenPosition }) {
   return (
     <CardShell variant="yellow">
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
-        {isPendingPosition && (
+        {isInFlight && (
           <div
             style={{
               display: 'flex',
@@ -103,10 +142,14 @@ export function PositionCard({ position }: { position: OpenPosition }) {
             />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 12, color: '#F5A623', fontWeight: 600 }}>
-                Finalizing on-chain
+                {isClosingPosition ? 'Closing on-chain' : isSettlingPosition ? 'Settling on-chain' : 'Finalizing on-chain'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                Waiting for the vault to confirm your position…
+                {isClosingPosition
+                  ? 'Waiting for the vault to confirm your close…'
+                  : isSettlingPosition
+                  ? 'Market resolved — waiting for on-chain settlement…'
+                  : 'Waiting for the vault to confirm your position…'}
               </div>
             </div>
             <div
@@ -152,26 +195,54 @@ export function PositionCard({ position }: { position: OpenPosition }) {
           }}
         >
           <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {position.marketTicker}
+            <div
+              onClick={() => copyToClipboard(position.marketTicker, 'ticker')}
+              style={{
+                fontSize: 16,
+                fontWeight: 700,
+                color: copiedKey === 'ticker' ? 'var(--green)' : 'var(--text)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                transition: 'color 0.2s',
+              }}
+              title={copiedKey === 'ticker' ? 'Copied!' : position.marketTicker}
+            >
+              {copiedKey === 'ticker' ? '✓ Copied to clipboard' : position.marketTicker}
             </div>
             <span
-              onClick={() => navigator.clipboard.writeText(position.id)}
+              onClick={() => copyToClipboard(position.id, 'id')}
               style={{
                 display: 'block',
                 fontSize: 10,
                 fontWeight: 500,
-                color: 'var(--text-dim)',
+                color: copiedKey === 'id' ? 'var(--green)' : 'var(--text-dim)',
                 fontFamily: 'monospace',
                 cursor: 'pointer',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-                maxWidth: '16ch',
+                transition: 'color 0.2s',
               }}
-              title={position.id}
+              title={copiedKey === 'id' ? 'Copied!' : position.id}
             >
-              {position.id}
+              {copiedKey === 'id' ? '✓ Copied to clipboard' : truncateMiddle(position.id)}
+            </span>
+            <span
+              onClick={() => copyToClipboard(position.onChainPositionKey, 'key')}
+              style={{
+                display: 'block',
+                fontSize: 10,
+                fontWeight: 500,
+                color: copiedKey === 'key' ? 'var(--green)' : 'var(--text-dim)',
+                fontFamily: 'monospace',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                marginTop: 2,
+                transition: 'color 0.2s',
+              }}
+              title={copiedKey === 'key' ? 'Copied!' : position.onChainPositionKey}
+            >
+              {copiedKey === 'key' ? '✓ Copied to clipboard' : truncateMiddle(position.onChainPositionKey)}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -198,14 +269,14 @@ export function PositionCard({ position }: { position: OpenPosition }) {
                 fontSize: 11,
                 fontWeight: 600,
                 color: position.status === 'open' ? 'var(--green)'
-                  : position.status === 'pending' ? '#F5A623'
+                  : isInFlight ? '#F5A623'
                   : 'var(--text-muted)',
                 background: position.status === 'open' ? 'var(--green-soft)'
-                  : position.status === 'pending' ? 'rgba(245,166,35,0.08)'
+                  : isInFlight ? 'rgba(245,166,35,0.08)'
                   : 'rgba(136,136,136,0.08)',
                 border: `1px solid ${
                   position.status === 'open' ? 'rgba(68,255,151,0.2)'
-                  : position.status === 'pending' ? 'rgba(245,166,35,0.2)'
+                  : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
                 }`,
                 borderRadius: 4,
@@ -238,39 +309,106 @@ export function PositionCard({ position }: { position: OpenPosition }) {
           </div>
         </div>
 
-        {/* Stats */}
-        <StatRow label="Side" value={position.side.toUpperCase()} />
-        <StatRow label="Entry Price" value={`$${position.entry.priceUsd}`} />
-        <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
-        <StatRow
-          label="Liquidation Price"
-          value={`$${position.risk.currentLiquidationPriceUsd}`}
-          valueColor="#F5A623"
-        />
-        <StatRow
-          label="PnL / (ROE %)"
-          value={`${pnlPrefix}$${Math.abs(pnlValue).toFixed(2)} (${pnlPrefix}${roePct}%)`}
-          valueColor={pnlColor}
-        />
-        <StatRow
-          label="Starting Leverage"
-          value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
-        />
-        <StatRow
-          label="Effective Leverage"
-          value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
-        />
-        <StatRow
-          label="Lifetime Fee APR"
-          value={`${(position.fees.lifetimeAprBps / 100).toFixed(1)}%`}
-        />
-        <StatRow label="Time to Resolution" value={timeDisplay} />
-        <StatRow label="Market Status" value={position.timing.marketStatus} />
+        {/* View toggle */}
+        <ViewToggle mode={viewMode} onChange={setViewMode} />
 
-        {/* Leverage History Chart */}
-        <div style={{ marginTop: 16 }}>
-          <LeverageChart unwinds={unwindData} isLoading={isUnwindsLoading} />
-        </div>
+        {viewMode === 'simple' ? (
+          <div style={{ animation: 'fadeIn 0.2s ease' }}>
+            <PnlHero
+              label="Net PnL · after fees"
+              value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)}`}
+              pctValue={`${netPnlPrefix}${netRoePct.toFixed(1)}%`}
+              color={netPnlColor}
+            />
+
+            {/* Glance grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '14px 18px',
+              }}
+            >
+              <MicroStat label="Current price" value={`$${position.current.markPriceUsd}`} />
+              <MicroStat
+                label="Liquidation"
+                value={`$${position.risk.currentLiquidationPriceUsd}`}
+                valueColor="#F5A623"
+              />
+              <MicroStat label="Time to resolution" value={timeDisplay} />
+              <MicroStat
+                label="Effective leverage"
+                value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
+              />
+            </div>
+          </div>
+        ) : (
+          <div style={{ animation: 'fadeIn 0.2s ease' }}>
+            <StatGroup label="Pricing">
+              <StatRow label="Entry Price" value={`$${position.entry.priceUsd}`} />
+              <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
+              <StatRow
+                label="Liquidation Price"
+                value={`$${position.risk.currentLiquidationPriceUsd}`}
+                valueColor="#F5A623"
+              />
+            </StatGroup>
+
+            <StatGroup label="Position Size">
+              <StatRow
+                label="Current Collateral"
+                value={`$${parseFloat(position.current.collateralUsd).toFixed(2)}`}
+              />
+              <StatRow
+                label="Current Notional"
+                value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
+              />
+            </StatGroup>
+
+            <StatGroup label="PnL & Fees">
+              <StatRow
+                label="PnL gross / ROE"
+                value={`${pnlPrefix}$${Math.abs(pnlValue).toFixed(2)} (${pnlPrefix}${roePct}%)`}
+                valueColor={pnlColor}
+              />
+              <StatRow
+                label="PnL net / ROE"
+                value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
+                valueColor={netPnlColor}
+              />
+              <StatRow
+                label="Accrued Fees"
+                value={`$${accruedFees.toFixed(2)}`}
+                valueColor="var(--text-muted)"
+              />
+              <StatRow
+                label="Lifetime Fee APR"
+                value={`${(position.fees.lifetimeAprBps / 100).toFixed(1)}%`}
+              />
+            </StatGroup>
+
+            <StatGroup label="Leverage">
+              <StatRow
+                label="Starting"
+                value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
+              />
+              <StatRow
+                label="Effective"
+                value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
+              />
+              <div style={{ marginTop: 10 }}>
+                <LeverageChart unwinds={unwindData} isLoading={isUnwindsLoading} />
+              </div>
+            </StatGroup>
+
+            <StatGroup label="Timing" last>
+              <StatRow label="Time to Resolution" value={timeDisplay} />
+              <StatRow label="Market Status" value={position.timing.marketStatus} />
+            </StatGroup>
+          </div>
+        )}
+
+        <style>{fadeInKeyframes}</style>
 
         {/* Action button */}
         {canAct && (
@@ -301,3 +439,4 @@ export function PositionCard({ position }: { position: OpenPosition }) {
     </CardShell>
   )
 }
+

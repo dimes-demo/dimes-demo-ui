@@ -7,12 +7,12 @@ interface ChartPoint {
   isUnwindEvent: boolean
 }
 
-function buildChartPoints(unwindList: PositionUnwindList): {
+function buildChartPoints(unwindList: PositionUnwindList, endAt?: Date): {
   points: ChartPoint[]
   hasTimeline: boolean
 } {
   const points: ChartPoint[] = []
-  const now = new Date()
+  const terminalDate = endAt ?? new Date()
   const hasTimeline = !!unwindList.originatedAt
 
   if (unwindList.originatedAt) {
@@ -24,7 +24,7 @@ function buildChartPoints(unwindList: PositionUnwindList): {
   } else {
     // Not yet opened — synthesize a flat line at origination leverage
     points.push({
-      date: new Date(now.getTime() - 60 * 60 * 1000),
+      date: new Date(terminalDate.getTime() - 60 * 60 * 1000),
       leverageBps: unwindList.originationLeverageBps,
       isUnwindEvent: false,
     })
@@ -39,9 +39,9 @@ function buildChartPoints(unwindList: PositionUnwindList): {
   }
 
   const lastPoint = points[points.length - 1]
-  if (!lastPoint || lastPoint.date < now) {
+  if (!lastPoint || lastPoint.date < terminalDate) {
     points.push({
-      date: now,
+      date: terminalDate,
       leverageBps: unwindList.currentLeverageBps,
       isUnwindEvent: false,
     })
@@ -55,7 +55,7 @@ function formatDate(d: Date): string {
 }
 
 function formatLeverage(bps: number): string {
-  return `${(bps / 10000).toFixed(1)}x`
+  return `${(bps / 10000).toFixed(2)}x`
 }
 
 interface TooltipState {
@@ -73,9 +73,11 @@ const HEIGHT = 130
 export function LeverageChart({
   unwinds,
   isLoading,
+  endAt,
 }: {
   unwinds: PositionUnwindList | undefined
   isLoading: boolean
+  endAt?: Date
 }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
@@ -126,7 +128,7 @@ export function LeverageChart({
     )
   }
 
-  const { points, hasTimeline } = buildChartPoints(unwinds)
+  const { points, hasTimeline } = buildChartPoints(unwinds, endAt)
   if (points.length < 2) return null
 
   const chartW = svgWidth - PAD_LEFT - PAD_RIGHT
@@ -160,19 +162,11 @@ export function LeverageChart({
   const firstX = toX(points[0].date).toFixed(1)
   const areaPath = `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`
 
-  // Pick 2–4 nice Y gridlines
-  const rawStep = levRange / 3
-  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep || 1)))
-  const niceStep = Math.ceil(rawStep / magnitude) * magnitude
-  const gridLevels: number[] = []
-  const gridStart = Math.ceil(yMin / niceStep) * niceStep
-  for (let v = gridStart; v <= yMax; v += niceStep) {
-    gridLevels.push(v)
-  }
-  // Always include origination + current; prefer those over nearby auto-ticks
-  const pinned = [points[0].leverageBps, points[points.length - 1].leverageBps, yMin]
+  // Y ticks: 1x minimum + each actual data point leverage
   const MIN_LABEL_PX = 14
-  const candidates = [...pinned, ...gridLevels].filter((v) => v >= yMin && v <= yMax)
+  const candidates = [yMin, ...points.map((p) => p.leverageBps)].filter(
+    (v) => v >= yMin && v <= yMax,
+  )
   const uniqueGridLevels: number[] = []
   for (const v of candidates) {
     const vy = PAD_TOP + (1 - (v - yMin) / yRange) * chartH

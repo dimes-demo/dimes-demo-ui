@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { isClosedPosition, isOpenPosition } from '../api/types'
 import { usePositions } from '../hooks/usePositions'
+import { usePendingPositionsStore } from '../store/pendingPositions'
+import { PendingPositionCard } from './PendingPositionCard'
 import { PositionCard } from './PositionCard'
 import { SettledCard } from './SettledCard'
 
@@ -22,11 +24,31 @@ export function PositionList() {
   const [sort, setSort] = useState<SortOption>('newest')
 
   const { sortBy, sortDirection } = sortConfig[sort]
-  const { data: positions, isLoading } = usePositions({ sortBy, sortDirection })
+  const apiState = tab === 'active' ? 'active' : 'inactive'
+  const { data: positions, isLoading } = usePositions({
+    sortBy,
+    sortDirection,
+    state: apiState,
+    expand: ['unwinds'],
+  })
 
-  const activePositions = positions?.filter(isOpenPosition) ?? []
+  const activePositions = tab === 'active' ? (positions?.filter(isOpenPosition) ?? []) : []
+  const closedPositions = tab === 'closed' ? (positions?.filter(isClosedPosition) ?? []) : []
 
-  const closedPositions = positions?.filter(isClosedPosition) ?? []
+  const pendingStubs = usePendingPositionsStore((s) => s.stubs)
+  const prunePendingStubs = usePendingPositionsStore((s) => s.pruneMatched)
+
+  useEffect(() => {
+    if (!positions) return
+    prunePendingStubs(positions.map((p) => p.onChainPositionKey))
+  }, [positions, prunePendingStubs])
+
+  const unmatchedStubs = pendingStubs.filter(
+    (stub) =>
+      !positions?.some(
+        (p) => p.onChainPositionKey.toLowerCase() === stub.key,
+      ),
+  )
 
   const currentSortOptions = tab === 'active' ? activeSortOptions : closedSortOptions
 
@@ -89,15 +111,17 @@ export function PositionList() {
               }}
             >
               {t}
-              <span
-                style={{
-                  marginLeft: 6,
-                  fontSize: 11,
-                  color: tab === t ? 'var(--text-muted)' : 'var(--text-dim)',
-                }}
-              >
-                {t === 'active' ? activePositions.length : closedPositions.length}
-              </span>
+              {tab === t && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 11,
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {t === 'active' ? activePositions.length : closedPositions.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -127,7 +151,10 @@ export function PositionList() {
       {/* Active tab */}
       {!isLoading && tab === 'active' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }} className='stat-grid'>
-          {activePositions.length === 0 ? (
+          {unmatchedStubs.map((stub) => (
+            <PendingPositionCard key={stub.key} stub={stub} />
+          ))}
+          {activePositions.length === 0 && unmatchedStubs.length === 0 ? (
             <div style={{ padding: '32px 0', textAlign: 'center', gridColumn: '1 / -1' }}>
               <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>
                 No active positions
@@ -135,7 +162,12 @@ export function PositionList() {
             </div>
           ) : (
             activePositions.map((pos) => (
-              <PositionCard key={pos.id} position={pos} />
+              <PositionCard
+                key={pos.id}
+                position={pos}
+                unwinds={pos.unwinds}
+                isUnwindsLoading={false}
+              />
             ))
           )}
         </div>
@@ -152,7 +184,12 @@ export function PositionList() {
             </div>
           ) : (
             closedPositions.map((pos) => (
-              <SettledCard key={pos.id} position={pos} />
+              <SettledCard
+                key={pos.id}
+                position={pos}
+                unwinds={pos.unwinds}
+                isUnwindsLoading={false}
+              />
             ))
           )}
         </div>

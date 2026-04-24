@@ -74,6 +74,7 @@ export interface Offer {
   polymarketTradingFeeBps: number;
   positionSeed: string;
   positionSeedHex: string;
+  onChainPositionKey: string;
   protocolOriginationFeeBps: number;
   protocolOriginationFeeUsd: string;
   protocolOriginationFeeUsdPips: string;
@@ -185,6 +186,7 @@ export interface PositionBase {
   provider: string;
   effectiveLeverageBps: number;
   entry: PositionEntry;
+  unwinds?: PositionUnwindList;
 }
 
 export interface OpenPosition extends PositionBase {
@@ -194,8 +196,13 @@ export interface OpenPosition extends PositionBase {
   timing: PositionTiming;
 }
 
+export interface PositionFailure {
+  reason: string;
+}
+
 export interface ClosedPosition extends PositionBase {
   closeReason: string;
+  failure?: PositionFailure | null;
   fees: PositionClosedFees;
   result: PositionResult;
 }

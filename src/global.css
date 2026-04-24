@@ -190,6 +190,224 @@ textarea {
   color: var(--text-dim);
 }
 
+.input-row input[type='number']::-webkit-outer-spin-button,
+.input-row input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-row input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* ---------------------------------------------------------------------------
+   Advanced disclosure (see TradePanel.tsx).
+   -------------------------------------------------------------------------- */
+
+.adv {
+  --adv-ease: cubic-bezier(0.32, 0.72, 0.24, 1);
+  margin-top: 14px;
+}
+
+.adv__toggle {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 180ms var(--adv-ease);
+}
+
+.adv__toggle:hover,
+.adv__toggle[aria-expanded='true'] {
+  color: var(--text-muted);
+}
+
+.adv__caret {
+  width: 8px;
+  height: 8px;
+  position: relative;
+  transition: transform 260ms var(--adv-ease);
+}
+
+.adv__caret::before,
+.adv__caret::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 1.25px;
+  background: currentColor;
+  border-radius: 1px;
+  transform-origin: 1px 50%;
+  transition: transform 260ms var(--adv-ease);
+}
+
+.adv__caret::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.adv__caret::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.adv__toggle[aria-expanded='true'] .adv__caret::before {
+  transform: translate(-50%, -50%) rotate(135deg);
+}
+
+.adv__toggle[aria-expanded='true'] .adv__caret::after {
+  transform: translate(-50%, -50%) rotate(-135deg);
+}
+
+.adv__rule {
+  flex: 1;
+  height: 1px;
+  margin-left: 10px;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0.08),
+    rgba(255, 255, 255, 0)
+  );
+}
+
+.adv__toggle-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.adv__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms var(--adv-ease);
+}
+
+.adv__panel--open {
+  grid-template-rows: 1fr;
+}
+
+.adv__panel-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.adv__panel-content {
+  padding-top: 12px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 240ms var(--adv-ease) 40ms,
+    transform 320ms var(--adv-ease) 40ms;
+}
+
+.adv__panel--open .adv__panel-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.adv__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adv__label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.adv__chips {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: 2px;
+  margin-left: auto;
+}
+
+.adv__chip {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: calc(var(--radius) - 3px);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: color 160ms var(--adv-ease), background 160ms var(--adv-ease);
+  font-variant-numeric: tabular-nums;
+}
+
+.adv__chip:hover:not(.adv__chip--active) {
+  color: var(--text);
+}
+
+.adv__chip--active {
+  background: var(--yellow);
+  color: var(--yellow-ink);
+}
+
+.adv__custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--card-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 10px 0 8px;
+  width: 86px;
+  transition: border-color 160ms var(--adv-ease);
+}
+
+.adv__custom:focus-within {
+  border-color: var(--yellow-border);
+}
+
+.adv__custom input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 7px 0;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.adv__custom input::-webkit-outer-spin-button,
+.adv__custom input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.adv__custom input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.adv__custom-suffix {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
 /* ---------------------------------------------------------------------------
    Mobile breakpoint.
    -------------------------------------------------------------------------- */

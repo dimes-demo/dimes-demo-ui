@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
+import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
   useApproveUsdc,
   useCheckAllowance,
@@ -18,6 +19,8 @@ import { Field } from './ui/Field'
 import { Input } from './ui/Input'
 
 const PRESET_AMOUNTS = [50, 100, 500] as const
+const DEFAULT_SLIPPAGE_BPS = 200
+const SLIPPAGE_PRESETS_BPS = [50, 100, 200, 500] as const
 
 export function TradePanel({
   market,
@@ -30,7 +33,21 @@ export function TradePanel({
   const [collateralUsd, setCollateralUsd] = useState('')
   const [leverageBps, setLeverageBps] = useState(market.leverage.minBps)
 
+  useEffect(() => {
+    const { minBps, maxBps, stepBps } = market.leverage
+    const maxSteps = Math.floor((maxBps - minBps) / stepBps)
+    setLeverageBps((prev) => {
+      const clamped = Math.min(Math.max(prev, minBps), minBps + maxSteps * stepBps)
+      const k = Math.round((clamped - minBps) / stepBps)
+      return minBps + Math.min(Math.max(k, 0), maxSteps) * stepBps
+    })
+  }, [market.ticker, market.leverage.minBps, market.leverage.maxBps, market.leverage.stepBps])
+  const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+
   const queryClient = useQueryClient()
+  const addPendingStub = usePendingPositionsStore((s) => s.add)
+  const removePendingStub = usePendingPositionsStore((s) => s.remove)
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
     address,
@@ -51,6 +68,8 @@ export function TradePanel({
     isPending: createPending,
     isConfirming: createConfirming,
     isSuccess: createSuccess,
+    isReceiptError: createReceiptError,
+    error: createWriteError,
     verifyError,
     reset: resetCreate,
   } = useCreatePosition()
@@ -70,6 +89,16 @@ export function TradePanel({
       queryClient.invalidateQueries({ queryKey: ['positions'] })
     }
   }, [createSuccess, queryClient])
+
+  // Clean up the optimistic stub if the flow fails anywhere after the click:
+  // wallet rejection / write error, or on-chain revert.
+  const stubKey = offer?.onChainPositionKey
+  useEffect(() => {
+    if (!stubKey) return
+    if (createWriteError || verifyError || createReceiptError) {
+      removePendingStub(stubKey)
+    }
+  }, [stubKey, createWriteError, verifyError, createReceiptError, removePendingStub])
 
   const [isOfferExpired, setIsOfferExpired] = useState(false)
   useEffect(() => {
@@ -108,6 +137,7 @@ export function TradePanel({
       effectiveSide: side,
       leverageBps,
       collateralUsd: Number(collateralUsd),
+      slippageBps,
     })
   }
 
@@ -122,6 +152,18 @@ export function TradePanel({
 
   const handleCreate = () => {
     if (!offer) return
+    if (offer.onChainPositionKey) {
+      addPendingStub({
+        key: offer.onChainPositionKey,
+        marketTicker: offer.marketTicker,
+        side: offer.effectiveSide === 'no' ? 'no' : 'yes',
+        leverageBps: offer.leverageBps,
+        collateralUsd: offer.notionalAmountUsd
+          ? (Number(offer.notionalAmountUsd) / (offer.leverageBps / 10000)).toFixed(2)
+          : collateralUsd,
+        createdAt: Date.now(),
+      })
+    }
     create(offer)
   }
 
@@ -239,6 +281,66 @@ export function TradePanel({
           value={leverageBps}
           onChange={(v) => { setLeverageBps(v); clearOffer(); }}
         />
+
+        {/* Advanced */}
+        <div className="adv">
+          <div className="adv__toggle-row">
+            <button
+              type="button"
+              className="adv__toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              <span className="adv__caret" aria-hidden />
+              Advanced
+            </button>
+            <span className="adv__rule" aria-hidden />
+          </div>
+          <div className={`adv__panel${advancedOpen ? ' adv__panel--open' : ''}`}>
+            <div className="adv__panel-inner">
+              <div className="adv__panel-content">
+                <div className="adv__row">
+                  <span className="adv__label">Slippage</span>
+                  <label className="adv__custom">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      min="0"
+                      value={(slippageBps / 100).toString()}
+                      onChange={(e) => {
+                        const pct = Number(e.target.value)
+                        if (Number.isNaN(pct)) return
+                        setSlippageBps(Math.max(0, Math.round(pct * 100)))
+                        clearOffer()
+                      }}
+                      placeholder="2.0"
+                      aria-label="Custom slippage percent"
+                    />
+                    <span className="adv__custom-suffix">%</span>
+                  </label>
+                  <div className="adv__chips" role="radiogroup" aria-label="Slippage presets">
+                    {SLIPPAGE_PRESETS_BPS.map((bps) => {
+                      const active = slippageBps === bps
+                      return (
+                        <button
+                          key={bps}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          className={`adv__chip${active ? ' adv__chip--active' : ''}`}
+                          onClick={() => { setSlippageBps(bps); clearOffer(); }}
+                        >
+                          {bps / 100}%
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Get quote */}
         <div style={{ marginTop: 20 }}>

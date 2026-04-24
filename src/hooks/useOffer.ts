@@ -7,6 +7,7 @@ interface UseOfferParams {
   effectiveSide: 'yes' | 'no';
   leverageBps: number;
   collateralUsd: number;
+  slippageBps: number;
 }
 
 export function useOffer() {
@@ -30,7 +31,7 @@ export function useOffer() {
         effectiveSide: params.effectiveSide,
         leverageBps: params.leverageBps,
         notionalAmountUsdPips: notionalUsdPips.toString(),
-        slippageBps: 200,
+        slippageBps: params.slippageBps,
       });
       setOffer(result);
     } catch (err) {

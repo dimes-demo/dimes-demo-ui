@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useMarkets } from '../hooks/useMarkets'
 import type { Market } from '../api/types'
 
@@ -78,13 +79,18 @@ export function MarketList({
 
   const acceptingNewPositions = eligible === 'yes' ? true : eligible === 'no' ? false : undefined
 
-  const { data: page, isLoading } = useMarkets(
+  const { data: page, isLoading, isFetching } = useMarkets(
     category,
     debouncedSearch || undefined,
     status,
     acceptingNewPositions,
     cursor,
   )
+
+  const queryClient = useQueryClient()
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['markets'] })
+  }
 
   const markets = page?.data
 
@@ -194,6 +200,47 @@ export function MarketList({
           <option value="yes">Accepting quotes</option>
           <option value="no">Not accepting quotes</option>
         </select>
+        <button
+          onClick={refresh}
+          disabled={isFetching}
+          title="Refresh"
+          aria-label="Refresh markets"
+          style={{
+            ...inputStyle,
+            flex: '0 0 auto',
+            cursor: isFetching ? 'wait' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0 10px',
+            color: 'var(--text)',
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              animation: isFetching ? 'marketRefreshSpin 0.8s linear infinite' : undefined,
+            }}
+          >
+            <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
+            <path d="M21 3v5h-5" />
+            <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+            <path d="M3 21v-5h5" />
+          </svg>
+        </button>
+        <style>{`
+          @keyframes marketRefreshSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(-360deg); }
+          }
+        `}</style>
       </div>
 
       {isLoading ? (

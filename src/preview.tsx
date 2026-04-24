@@ -88,6 +88,7 @@ const mockOffer: Offer = {
   polymarketTradingFeeBps: 100,
   positionSeed: 'seed1',
   positionSeedHex: '0xseed1',
+  onChainPositionKey: '0xkey1',
   protocolOriginationFeeBps: 100,
   protocolOriginationFeeUsd: '0.50',
   protocolOriginationFeeUsdPips: '5000',

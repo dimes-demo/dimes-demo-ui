@@ -86,7 +86,7 @@ export function useCheckAllowance(
 
 export function useCreatePosition() {
   const { writeContract, data: hash, isPending, error, reset: resetWrite } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess, isError: isReceiptError } = useWaitForTransactionReceipt({
     hash,
   });
   const publicClient = usePublicClient();
@@ -160,7 +160,7 @@ export function useCreatePosition() {
     writeContract({ ...params, ...gasOverrides });
   };
 
-  return { create, hash, isPending, isConfirming, isSuccess, error, verifyError, reset };
+  return { create, hash, isPending, isConfirming, isSuccess, isReceiptError, error, verifyError, reset };
 }
 
 export function useRequestClose() {
