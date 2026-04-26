@@ -2,9 +2,15 @@
 
 export interface MarketLeverage {
   minBps: number;
+  maxBps?: number;
   maxYesBps: number;
   maxNoBps: number;
   stepBps: number;
+}
+
+export function leverageMaxBps(lev: MarketLeverage, side: 'yes' | 'no'): number {
+  const perSide = side === 'yes' ? lev.maxYesBps : lev.maxNoBps
+  return perSide ?? lev.maxBps ?? lev.minBps
 }
 
 export interface OriginationTier {
@@ -33,6 +39,10 @@ export interface Market {
   tags: string[];
   minNotionalUsd: string;
   minNotionalUsdPips: string;
+  maxNotionalYesUsdPips: string | null;
+  maxNotionalYesUsd: string | null;
+  maxNotionalNoUsdPips: string | null;
+  maxNotionalNoUsd: string | null;
   leverage: MarketLeverage;
   fees: MarketFees;
 }

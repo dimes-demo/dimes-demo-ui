@@ -1,4 +1,5 @@
 import type { Market } from '../api/types'
+import { leverageMaxBps } from '../api/types'
 import { CardShell } from './CardShell'
 
 export function MarketCard({
@@ -8,8 +9,8 @@ export function MarketCard({
   market: Market
   onSelect: (market: Market) => void
 }) {
-  const maxLeverageYes = (market.leverage.maxYesBps / 10000).toFixed(0)
-  const maxLeverageNo = (market.leverage.maxNoBps / 10000).toFixed(0)
+  const maxLeverageYes = (leverageMaxBps(market.leverage, 'yes') / 10000).toFixed(0)
+  const maxLeverageNo = (leverageMaxBps(market.leverage, 'no') / 10000).toFixed(0)
 
   return (
     <CardShell variant="yellow" onClick={() => onSelect(market)}>

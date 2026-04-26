@@ -8,6 +8,7 @@ const PAGE_SIZE = 15;
 export interface MarketsPage {
   data: Market[];
   hasMore: boolean;
+  totalCount?: number;
 }
 
 export function useMarkets(
@@ -37,6 +38,7 @@ export function useMarkets(
         acceptingNewPositions,
         limit: PAGE_SIZE,
         startingAfter,
+        expand: ['total_count'],
       });
     },
     enabled: !!jwt,

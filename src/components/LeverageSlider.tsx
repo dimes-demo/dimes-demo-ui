@@ -4,12 +4,14 @@ export function LeverageSlider({
   step,
   value,
   onChange,
+  maxViableStep,
 }: {
   min: number
   max: number
   step: number
   value: number
   onChange: (value: number) => void
+  maxViableStep?: number | null
 }) {
   const maxSteps = Math.max(0, Math.floor((max - min) / step))
   const effectiveMax = min + maxSteps * step
@@ -138,6 +140,12 @@ export function LeverageSlider({
         {steps.map((s) => {
           const dotPct = range > 0 ? ((s - min) / range) * 100 : 50
           const isActive = s <= value
+          const isBeyondViable = maxViableStep != null && s > maxViableStep
+          const dotBg = isBeyondViable
+            ? 'rgba(224, 82, 82, 0.35)'
+            : isActive
+              ? 'rgba(238,255,0,0.6)'
+              : 'rgba(255,255,255,0.15)'
           return (
             <div
               key={s}
@@ -148,7 +156,7 @@ export function LeverageSlider({
                 width: 4,
                 height: 4,
                 borderRadius: '50%',
-                background: isActive ? 'rgba(238,255,0,0.6)' : 'rgba(255,255,255,0.15)',
+                background: dotBg,
                 transform: 'translate(-50%, -50%)',
                 transition: 'background 0.15s ease',
                 zIndex: 1,

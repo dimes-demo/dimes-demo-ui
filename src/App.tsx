@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useAccount } from 'wagmi'
 import { useAutoAuth } from './hooks/useAutoAuth'
 import { useAuthStore } from './store/auth'
-import { useSupportedMarketsCount } from './hooks/useSupportedMarketsCount'
 import type { Market } from './api/types'
 import { Layout } from './components/Layout'
 import { Header } from './components/Header'
@@ -18,16 +17,18 @@ const sectionTitle: React.CSSProperties = {
   marginBottom: 4,
 }
 
-function MarketsTitle() {
-  const count = useSupportedMarketsCount()
+function MarketsTitle({ count }: { count?: number }) {
   return (
     <h2 style={sectionTitle}>
       Supported Markets
-      <span style={{ color: 'var(--text-dim)', margin: '0 8px' }}>·</span>
-      <span style={{ color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-        {count ?? '—'}
-      </span>
-      <span style={{ color: 'var(--text-dim)', marginLeft: 8 }}>(live)</span>
+      {count != null && (
+        <>
+          <span style={{ color: 'var(--text-dim)', margin: '0 8px' }}>·</span>
+          <span style={{ color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+            {count}
+          </span>
+        </>
+      )}
     </h2>
   )
 }
@@ -37,6 +38,8 @@ function App() {
   useAutoAuth()
   const jwt = useAuthStore((s) => s.jwt)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)
+  const [marketCount, setMarketCount] = useState<number | undefined>(undefined)
+  const onTotalCount = useCallback((n: number | undefined) => setMarketCount(n), [])
 
   return (
     <Layout>
@@ -57,10 +60,11 @@ function App() {
           <>
             <div className="markets-layout">
               <div className="markets-layout__list">
-                <MarketsTitle />
+                <MarketsTitle count={marketCount} />
                 <MarketList
                   onSelectMarket={setSelectedMarket}
                   selectedMarketId={selectedMarket?.id}
+                  onTotalCount={onTotalCount}
                 />
               </div>
               <div className="markets-layout__panel">

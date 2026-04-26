@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useMarkets } from '../hooks/useMarkets'
 import { usePrefetchMarketOdds } from '../hooks/useMarketOdds'
 import type { Market } from '../api/types'
+import { leverageMaxBps } from '../api/types'
 
 function getQueryParam(key: string): string | undefined {
   const value = new URLSearchParams(window.location.search).get(key)
@@ -41,9 +42,11 @@ function rejectionReadable(code: string | null | undefined) {
 export function MarketList({
   onSelectMarket,
   selectedMarketId,
+  onTotalCount,
 }: {
   onSelectMarket: (market: Market) => void
   selectedMarketId?: string
+  onTotalCount?: (count: number | undefined) => void
 }) {
   const [search, setSearch] = useState(() => getQueryParam('q') ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(() => getQueryParam('q') ?? '')
@@ -114,6 +117,10 @@ export function MarketList({
   const hasMore = page?.hasMore ?? false
   const hasPrev = cursorStack.length > 0
 
+  useEffect(() => {
+    onTotalCount?.(page?.totalCount)
+  }, [page?.totalCount, onTotalCount])
+
   const sortedMarkets = useMemo(() => {
     if (!markets) return markets
     if (!sortKey) return markets
@@ -140,8 +147,8 @@ export function MarketList({
           bv = b.acceptingNewPositions ? 1 : 0
           break
         case 'leverage':
-          av = Math.max(a.leverage.maxYesBps, a.leverage.maxNoBps)
-          bv = Math.max(b.leverage.maxYesBps, b.leverage.maxNoBps)
+          av = Math.max(leverageMaxBps(a.leverage, 'yes'), leverageMaxBps(a.leverage, 'no'))
+          bv = Math.max(leverageMaxBps(b.leverage, 'yes'), leverageMaxBps(b.leverage, 'no'))
           break
       }
       if (av < bv) return -1 * dir
@@ -421,7 +428,7 @@ function MarketRow({
 }) {
   const [hovered, setHovered] = useState(false)
   const prefetchOdds = usePrefetchMarketOdds()
-  const maxLeverage = (Math.max(market.leverage.maxYesBps, market.leverage.maxNoBps) / 10000).toFixed(0)
+  const maxLeverage = (Math.max(leverageMaxBps(market.leverage, 'yes'), leverageMaxBps(market.leverage, 'no')) / 10000).toFixed(0)
 
   const tdStyle: React.CSSProperties = {
     padding: '12px 14px',

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
-import type { Market } from '../api/types'
+import type { Market, MarketLeverage } from '../api/types'
+import { leverageMaxBps } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
 import { useMarketOdds } from '../hooks/useMarketOdds'
 import { useValueTween } from '../hooks/useValueTween'
@@ -14,6 +15,8 @@ import {
 } from '../contract/hooks'
 import { ApiError } from '../api/client'
 import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
+import { maxViableLeverageBps } from '../utils/capacity'
+import { CapacityGuide } from './CapacityGuide'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { LeverageSlider } from './LeverageSlider'
@@ -29,10 +32,10 @@ const DEFAULT_LEVERAGE_BPS = 20000 // 2x
 const SLIPPAGE_PRESETS_BPS = [200, 500, 800] as const
 const FORCED_LEVERAGE_STEP_BPS = 5000 // 0.5x
 
-function clampLeverageToMarket(target: number, market: { leverage: { minBps: number; maxYesBps: number; maxNoBps: number; stepBps: number } }, side: 'yes' | 'no' = 'yes') {
+function clampLeverageToMarket(target: number, market: { leverage: MarketLeverage }, side: 'yes' | 'no' = 'yes') {
   const step = Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)
   const minBps = market.leverage.minBps
-  const maxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
+  const maxBps = leverageMaxBps(market.leverage, side)
   const maxSteps = Math.max(0, Math.floor((maxBps - minBps) / step))
   const clamped = Math.min(Math.max(target, minBps), minBps + maxSteps * step)
   const k = Math.round((clamped - minBps) / step)
@@ -53,12 +56,13 @@ export function TradePanel({
   )
   const [showTicker, setShowTicker] = useState(false)
 
-  const sideMaxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
+  const sideMaxBps = leverageMaxBps(market.leverage, side)
+  const maxViableLev = useMemo(() => maxViableLeverageBps(market, side), [market, side])
 
   useEffect(() => {
     setLeverageBps(clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market, side))
     setShowTicker(false)
-  }, [market.ticker, market.leverage.minBps, market.leverage.maxYesBps, market.leverage.maxNoBps, market.leverage.stepBps, side])
+  }, [market.ticker, market.leverage.minBps, market.leverage.maxBps, market.leverage.maxYesBps, market.leverage.maxNoBps, market.leverage.stepBps, side])
   const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
@@ -215,6 +219,9 @@ export function TradePanel({
       toValue: adj.toValue,
       nonce: correctionNonceRef.current,
     })
+
+    const timer = setTimeout(clearOffer, 700)
+    return () => clearTimeout(timer)
   }, [offerError])
 
   // Tween display values for whichever field is mid-correction. When the
@@ -427,6 +434,7 @@ export function TradePanel({
             step={Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)}
             value={displayLeverageBps}
             onChange={(v) => { setLeverageBps(v); clearOffer(); }}
+            maxViableStep={maxViableLev}
           />
           {correction?.field === 'leverage' && (
             <span
@@ -436,6 +444,13 @@ export function TradePanel({
             />
           )}
         </div>
+
+        <CapacityGuide
+          market={market}
+          side={side}
+          leverageBps={leverageBps}
+          collateralUsd={Number(collateralUsd) || 0}
+        />
 
         {/* Advanced */}
         <div className="adv">
@@ -528,7 +543,13 @@ export function TradePanel({
         </div>
 
         <ErrorBanner error={offerError} onDismiss={clearOffer} />
-        <QuoteErrorHint hint={offerHint} adjustment={adjustment} />
+        <QuoteErrorHint
+          hint={offerHint}
+          adjustment={adjustment}
+          market={market}
+          side={side}
+          leverageBps={leverageBps}
+        />
         <ErrorBanner
           error={verifyError ?? createWriteError ?? createReceiptErrorObj}
           onDismiss={resetCreate}
