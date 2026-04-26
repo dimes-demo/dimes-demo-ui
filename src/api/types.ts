@@ -2,7 +2,8 @@
 
 export interface MarketLeverage {
   minBps: number;
-  maxBps: number;
+  maxYesBps: number;
+  maxNoBps: number;
   stepBps: number;
 }
 
@@ -109,6 +110,9 @@ export interface PositionEntry {
   originationFeeUsdPips: string;
   priceUsd: string;
   priceUsdPips: string;
+  effectiveEntryPriceUsd: string | null;
+  effectiveEntryPriceUsdPips: string | null;
+  effectiveSlippageBps: number | null;
 }
 
 export interface PositionCurrent {

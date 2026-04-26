@@ -277,7 +277,8 @@ export function MarketList({
                   <th style={thStyle}>Category</th>
                   <th style={thStyle}>Status</th>
                   <th style={thStyle}>Eligible</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Max Leverage</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Max Leverage YES</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Max Leverage NO</th>
                 </tr>
               </thead>
               <tbody>
@@ -344,7 +345,8 @@ function MarketRow({
 }) {
   const [hovered, setHovered] = useState(false)
   const [pressed, setPressed] = useState(false)
-  const maxLeverage = (market.leverage.maxBps / 10000).toFixed(0)
+  const maxLeverageYes = (market.leverage.maxYesBps / 10000).toFixed(0)
+  const maxLeverageNo = (market.leverage.maxNoBps / 10000).toFixed(0)
 
   const rowBg = isSelected
     ? 'rgba(238,255,0,0.09)'
@@ -506,20 +508,23 @@ function MarketRow({
             }}
           >
             {market.rejectionReasonCode
-              ? market.rejectionReasonCode.replace(/^offer_/, '').replaceAll('_', ' ')
+              ? market.rejectionReasonCode.replace(/^QUOTE_/, '').replaceAll('_', ' ')
               : 'NO'}
           </span>
         )}
       </td>
       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--yellow)' }}>
-        {maxLeverage}x
+        {maxLeverageYes}x
+      </td>
+      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--yellow)' }}>
+        {maxLeverageNo}x
       </td>
     </tr>
   )
 }
 
 function MarketListSkeleton() {
-  const columns = [80, 240, 70, 60, 50, 60]
+  const columns = [80, 240, 70, 60, 50, 60, 60]
   const rows = 15
   const rowTdStyle: React.CSSProperties = {
     padding: '12px 16px',

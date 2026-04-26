@@ -9,8 +9,9 @@ import {
   StatGroup,
   ViewToggle,
   fadeInKeyframes,
-  useViewMode,
 } from './CardViewParts'
+import { useViewMode } from '../hooks/useViewMode'
+import { formatSlippageBps } from '../utils/format'
 
 const reasonLabels: Record<string, string> = {
   closed: 'Closed',
@@ -73,6 +74,18 @@ export function SettledCard({
   const pnlPrefix = realizedPnl >= 0 ? '+' : ''
   const entryCollateral = parseFloat(position.entry.collateralUsd)
   const roePct = entryCollateral > 0 ? (realizedPnl / entryCollateral) * 100 : 0
+
+  const filledPrice = position.entry.effectiveEntryPriceUsd
+  const slippageBps = position.entry.effectiveSlippageBps
+  const slippageText = formatSlippageBps(slippageBps)
+  const slippageColor =
+    slippageBps == null
+      ? 'var(--text-muted)'
+      : slippageBps > 0
+      ? 'var(--red)'
+      : slippageBps < 0
+      ? 'var(--green)'
+      : 'var(--text)'
 
   const reason = reasonLabels[position.closeReason] || position.closeReason
   const isLiquidated = position.closeReason === 'liquidated'
@@ -238,7 +251,12 @@ export function SettledCard({
               accent="rgba(255,255,255,0.08)"
               accentText="var(--text-dim)"
             >
-              <StatRow label="Entry Price" value={`$${position.entry.priceUsd}`} />
+              <StatRow label="Quote Price" value={`$${position.entry.priceUsd}`} />
+              <StatRow
+                label="Filled Price"
+                value={filledPrice ? `$${filledPrice}` : 'Pending fill'}
+                valueColor={filledPrice ? undefined : 'var(--text-muted)'}
+              />
             </StatGroup>
 
             <StatGroup
@@ -264,6 +282,11 @@ export function SettledCard({
               <StatRow
                 label="Lifetime Fee"
                 value={`$${position.fees.totalLifetimeFeeUsd}`}
+              />
+              <StatRow
+                label="Execution Slippage"
+                value={slippageText ?? 'Pending fill'}
+                valueColor={slippageColor}
               />
             </StatGroup>
 

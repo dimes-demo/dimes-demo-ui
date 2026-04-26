@@ -8,7 +8,8 @@ export function MarketCard({
   market: Market
   onSelect: (market: Market) => void
 }) {
-  const maxLeverage = (market.leverage.maxBps / 10000).toFixed(0)
+  const maxLeverageYes = (market.leverage.maxYesBps / 10000).toFixed(0)
+  const maxLeverageNo = (market.leverage.maxNoBps / 10000).toFixed(0)
 
   return (
     <CardShell variant="yellow" onClick={() => onSelect(market)}>
@@ -101,7 +102,7 @@ export function MarketCard({
             Max Leverage
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--yellow)' }}>
-            Up to {maxLeverage}x
+            {maxLeverageYes}x YES / {maxLeverageNo}x NO
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>

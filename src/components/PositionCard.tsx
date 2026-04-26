@@ -5,8 +5,8 @@ import {
   StatGroup,
   ViewToggle,
   fadeInKeyframes,
-  useViewMode,
 } from './CardViewParts'
+import { useViewMode } from '../hooks/useViewMode'
 import { useQueryClient } from '@tanstack/react-query'
 import type { OpenPosition, PositionUnwindList } from '../api/types'
 import { isDemoMode } from '../api/auth'
@@ -18,6 +18,7 @@ import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { HealthRing } from './HealthRing'
 import { LeverageChart } from './LeverageChart'
+import { formatSlippageBps } from '../utils/format'
 
 export function PositionCard({
   position,
@@ -32,7 +33,16 @@ export function PositionCard({
   const cancelMutation = useCancelPosition()
   const { data: contractInfo } = useContractInfo()
   const unwindData = unwinds
-  const { requestClose, isPending: isCloseSigning, isConfirming: isCloseConfirming, isSuccess: isCloseConfirmed, error: closeChainError } = useRequestClose()
+  const {
+    requestClose,
+    isPending: isCloseSigning,
+    isConfirming: isCloseConfirming,
+    isSuccess: isCloseConfirmed,
+    error: closeChainError,
+    receiptError: closeReceiptError,
+    simulateError: closeSimError,
+    reset: resetClose,
+  } = useRequestClose()
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [viewMode, setViewMode] = useViewMode('positionCard.viewMode')
@@ -62,7 +72,9 @@ export function PositionCard({
   const isBusy =
     cancelMutation.isPending || isCloseSigning || isCloseConfirming
 
-  const actionError: unknown = isPendingPosition ? cancelMutation.error : closeChainError
+  const actionError: unknown = isPendingPosition
+    ? cancelMutation.error
+    : closeSimError ?? closeChainError ?? closeReceiptError
 
   const handleAction = () => {
     if (isBusy) return
@@ -78,6 +90,7 @@ export function PositionCard({
 
   const dismissError = () => {
     if (isPendingPosition) cancelMutation.reset()
+    else resetClose()
   }
 
   const buttonLabel = (() => {
@@ -100,6 +113,17 @@ export function PositionCard({
   const netPnlValue = pnlValue - accruedFees
   const netPnlColor = netPnlValue >= 0 ? 'var(--green)' : 'var(--red)'
   const netPnlPrefix = netPnlValue >= 0 ? '+' : ''
+  const filledPrice = position.entry.effectiveEntryPriceUsd
+  const slippageBps = position.entry.effectiveSlippageBps
+  const slippageText = formatSlippageBps(slippageBps)
+  const slippageColor =
+    slippageBps == null
+      ? 'var(--text-muted)'
+      : slippageBps > 0
+      ? 'var(--red)'
+      : slippageBps < 0
+      ? 'var(--green)'
+      : 'var(--text)'
   const entryCollateral = parseFloat(position.entry.collateralUsd)
   const netRoePct = entryCollateral > 0 ? (netPnlValue / entryCollateral) * 100 : 0
 
@@ -345,7 +369,12 @@ export function PositionCard({
         ) : (
           <div style={{ animation: 'fadeIn 0.2s ease' }}>
             <StatGroup label="Pricing">
-              <StatRow label="Entry Price" value={`$${position.entry.priceUsd}`} />
+              <StatRow label="Quote Price" value={`$${position.entry.priceUsd}`} />
+              <StatRow
+                label="Filled Price"
+                value={filledPrice ? `$${filledPrice}` : 'Pending fill'}
+                valueColor={filledPrice ? undefined : 'var(--text-muted)'}
+              />
               <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
               <StatRow
                 label="Liquidation Price"
@@ -384,6 +413,11 @@ export function PositionCard({
               <StatRow
                 label="Lifetime Fee APR"
                 value={`${(position.fees.lifetimeAprBps / 100).toFixed(1)}%`}
+              />
+              <StatRow
+                label="Execution Slippage"
+                value={slippageText ?? 'Pending fill'}
+                valueColor={slippageColor}
               />
             </StatGroup>
 

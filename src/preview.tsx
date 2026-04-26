@@ -24,7 +24,7 @@ const mockMarket: Market = {
   tags: ['crypto'],
   minNotionalUsd: '5.00',
   minNotionalUsdPips: '50000',
-  leverage: { minBps: 10000, maxBps: 50000, stepBps: 5000 },
+  leverage: { minBps: 10000, maxYesBps: 50000, maxNoBps: 50000, stepBps: 5000 },
   fees: {
     lifetimeAprBps: 500,
     liquidationBps: 200,
@@ -39,7 +39,7 @@ const mockMarket2: Market = {
   title: 'Will Ethereum implement sharding by Q4?',
   category: 'crypto',
   status: 'open',
-  leverage: { minBps: 10000, maxBps: 80000, stepBps: 10000 },
+  leverage: { minBps: 10000, maxYesBps: 80000, maxNoBps: 60000, stepBps: 10000 },
 }
 
 const mockMarket3: Market = {
@@ -49,7 +49,7 @@ const mockMarket3: Market = {
   title: 'Will the Democratic candidate win the 2028 US Presidential Election?',
   category: 'politics',
   status: 'open',
-  leverage: { minBps: 10000, maxBps: 100000, stepBps: 10000 },
+  leverage: { minBps: 10000, maxYesBps: 100000, maxNoBps: 100000, stepBps: 10000 },
 }
 
 const mockOffer: Offer = {
@@ -122,6 +122,9 @@ const mockOpenPosition: OpenPosition = {
     originationFeeUsdPips: '5000',
     priceUsd: '0.33',
     priceUsdPips: '3300',
+    effectiveEntryPriceUsd: '0.3317',
+    effectiveEntryPriceUsdPips: '3317',
+    effectiveSlippageBps: 51,
   },
   current: {
     collateralUsd: '10.00',
@@ -184,6 +187,9 @@ const mockClosedPosition: ClosedPosition = {
     originationFeeUsdPips: '10000',
     priceUsd: '0.52',
     priceUsdPips: '5200',
+    effectiveEntryPriceUsd: '0.5189',
+    effectiveEntryPriceUsdPips: '5189',
+    effectiveSlippageBps: -21,
   },
   closeReason: 'settled',
   fees: {
