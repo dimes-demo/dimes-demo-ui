@@ -38,7 +38,7 @@ export function ViewToggle({
         marginBottom: 4,
         background: 'rgba(255,255,255,0.03)',
         border: '1px solid var(--border)',
-        borderRadius: 999,
+        borderRadius: 0,
       }}
     >
       {options.map((opt) => {
@@ -53,7 +53,7 @@ export function ViewToggle({
               appearance: 'none',
               border: 0,
               padding: '4px 14px',
-              borderRadius: 999,
+              borderRadius: 0,
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.06em',
@@ -119,8 +119,8 @@ export function StatGroup({
   label,
   children,
   last,
-  accent = 'rgba(238,255,0,0.18)',
-  accentText = 'var(--yellow)',
+  accent = 'rgba(255,255,255,0.08)',
+  accentText = 'var(--text-dim)',
 }: {
   label: string
   children: ReactNode
@@ -199,15 +199,14 @@ export function PnlHero({
       >
         {label}
       </div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
         <span
           style={{
-            fontSize: 32,
+            fontSize: 15,
             fontWeight: 600,
             color,
             fontVariantNumeric: 'tabular-nums',
-            letterSpacing: '-0.02em',
-            lineHeight: 1,
+            lineHeight: 1.2,
           }}
         >
           {value}
@@ -215,7 +214,7 @@ export function PnlHero({
         {pctValue && (
           <span
             style={{
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: 500,
               color,
               opacity: 0.7,

@@ -26,65 +26,76 @@ export function LeverageSlider({
 
   const range = effectiveMax - min
   const pct = range > 0 ? ((value - min) / range) * 100 : 0
-  const displayValue = (value / 10000).toFixed(2)
+  const displayValue = (value / 10000).toFixed(value % 10000 === 0 ? 0 : 1)
 
   if (maxSteps === 0) {
     return (
-      <div style={{ padding: '8px 0' }}>
+      <div>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '14px 16px',
-            borderRadius: 'var(--radius)',
-            background: 'var(--card-elevated)',
-            border: '1px solid rgba(238,255,0,0.15)',
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Leverage</span>
-            <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-              Fixed for this market
-            </span>
-          </div>
+          <span
+            style={{
+              color: 'var(--text)',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Leverage
+          </span>
           <span
             style={{
               color: 'var(--yellow)',
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: 700,
               fontFamily: 'var(--font)',
-              padding: '4px 12px',
-              borderRadius: 999,
-              background: 'rgba(238,255,0,0.08)',
-              border: '1px solid rgba(238,255,0,0.25)',
+              textShadow:
+                '0 0 20px rgba(238,255,0,0.55), 0 0 50px rgba(238,255,0,0.35), 0 0 80px rgba(238,255,0,0.18)',
             }}
           >
             {displayValue}x
           </span>
+        </div>
+        <div
+          style={{
+            color: 'var(--text-dim)',
+            fontSize: 10,
+            marginTop: 6,
+          }}
+        >
+          Fixed for this market
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '8px 0' }}>
-      {/* Value label */}
+    <div>
+      {/* Header row */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'baseline',
-          marginBottom: 12,
+          marginBottom: 14,
         }}
       >
-        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Leverage</span>
+        <span style={{ color: 'var(--text)', fontSize: 13, fontWeight: 600 }}>
+          Leverage
+        </span>
         <span
           style={{
             color: 'var(--yellow)',
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: 700,
             fontFamily: 'var(--font)',
+            textShadow:
+              '0 0 20px rgba(238,255,0,0.55), 0 0 50px rgba(238,255,0,0.35), 0 0 80px rgba(238,255,0,0.18)',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {displayValue}x
@@ -92,7 +103,7 @@ export function LeverageSlider({
       </div>
 
       {/* Track container */}
-      <div style={{ position: 'relative', height: 32 }}>
+      <div style={{ position: 'relative', height: 24 }}>
         {/* Track background */}
         <div
           style={{
@@ -100,10 +111,10 @@ export function LeverageSlider({
             top: '50%',
             left: 0,
             right: 0,
-            height: 4,
+            height: 2,
             transform: 'translateY(-50%)',
-            background: 'var(--card-elevated)',
-            borderRadius: 2,
+            background: 'rgba(255,255,255,0.08)',
+            borderRadius: 0,
           }}
         />
 
@@ -114,15 +125,15 @@ export function LeverageSlider({
             top: '50%',
             left: 0,
             width: `${pct}%`,
-            height: 4,
+            height: 2,
             transform: 'translateY(-50%)',
-            background: 'linear-gradient(90deg, #484D00, #EEFF00)',
-            borderRadius: 2,
+            background: 'linear-gradient(90deg, transparent, #EEFF00)',
+            borderRadius: 0,
             transition: 'width 0.1s ease',
           }}
         />
 
-        {/* Dots */}
+        {/* Step dots */}
         {steps.map((s) => {
           const dotPct = range > 0 ? ((s - min) / range) * 100 : 50
           const isActive = s <= value
@@ -133,10 +144,10 @@ export function LeverageSlider({
                 position: 'absolute',
                 top: '50%',
                 left: `${dotPct}%`,
-                width: 8,
-                height: 8,
+                width: 4,
+                height: 4,
                 borderRadius: '50%',
-                background: isActive ? 'var(--yellow)' : '#333',
+                background: isActive ? 'rgba(238,255,0,0.6)' : 'rgba(255,255,255,0.15)',
                 transform: 'translate(-50%, -50%)',
                 transition: 'background 0.15s ease',
                 zIndex: 1,
@@ -151,13 +162,12 @@ export function LeverageSlider({
             position: 'absolute',
             top: '50%',
             left: `${pct}%`,
-            width: 18,
-            height: 18,
+            width: 10,
+            height: 10,
             borderRadius: '50%',
             background: 'var(--yellow)',
-            border: '2px solid #0C0C0C',
             transform: 'translate(-50%, -50%)',
-            boxShadow: '0 0 12px rgba(238,255,0,0.4)',
+            boxShadow: '0 0 8px rgba(238,255,0,0.7)',
             zIndex: 2,
             transition: 'left 0.1s ease',
           }}
@@ -190,14 +200,14 @@ export function LeverageSlider({
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          marginTop: 4,
+          marginTop: 6,
         }}
       >
-        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-          {(min / 10000).toFixed(2)}x
+        <span style={{ color: 'var(--text-dim)', fontSize: 10 }}>
+          {(min / 10000).toFixed(min % 10000 === 0 ? 0 : 1)}x
         </span>
-        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>
-          {(effectiveMax / 10000).toFixed(2)}x
+        <span style={{ color: 'var(--text-dim)', fontSize: 10 }}>
+          {(effectiveMax / 10000).toFixed(effectiveMax % 10000 === 0 ? 0 : 1)}x
         </span>
       </div>
     </div>

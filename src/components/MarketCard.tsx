@@ -45,7 +45,7 @@ export function MarketCard({
                   ? 'rgba(68,255,151,0.2)'
                   : 'var(--border)'
               }`,
-              borderRadius: 4,
+              borderRadius: 0,
               padding: '2px 8px',
               textTransform: 'uppercase',
             }}
@@ -77,7 +77,7 @@ export function MarketCard({
             fontSize: 11,
             color: 'var(--text-muted)',
             background: 'var(--surface-subtle)',
-            borderRadius: 4,
+            borderRadius: 0,
             padding: '2px 8px',
             marginBottom: 12,
           }}

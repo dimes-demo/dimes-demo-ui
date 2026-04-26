@@ -99,7 +99,7 @@ export function LeverageChart({
         style={{
           background: 'rgba(238,255,0,0.04)',
           border: '1px solid rgba(238,255,0,0.1)',
-          borderRadius: 8,
+          borderRadius: 0,
           padding: '12px 14px',
         }}
       >
@@ -119,7 +119,7 @@ export function LeverageChart({
           style={{
             height: HEIGHT,
             background: 'rgba(255,255,255,0.03)',
-            borderRadius: 4,
+            borderRadius: 0,
             animation: 'pulse 1.5s ease-in-out infinite',
           }}
         />
@@ -204,7 +204,7 @@ export function LeverageChart({
         style={{
           background: 'rgba(238,255,0,0.04)',
           border: '1px solid rgba(238,255,0,0.1)',
-          borderRadius: 8,
+          borderRadius: 0,
           padding: '12px 14px',
         }}
       >
@@ -381,7 +381,7 @@ export function LeverageChart({
             top: tooltip.clientY - 40,
             background: 'rgba(20,20,20,0.96)',
             border: '1px solid rgba(238,255,0,0.2)',
-            borderRadius: 6,
+            borderRadius: 0,
             padding: '5px 9px',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',

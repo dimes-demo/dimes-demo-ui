@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMarkets } from '../hooks/useMarkets'
+import { usePrefetchMarketOdds } from '../hooks/useMarketOdds'
 import type { Market } from '../api/types'
 
 function getQueryParam(key: string): string | undefined {
@@ -20,10 +21,29 @@ function setQueryParams(params: Record<string, string | undefined>) {
   window.history.replaceState(null, '', url.toString())
 }
 
+type SortKey = 'title' | 'category' | 'status' | 'eligible' | 'leverage'
+type SortDir = 'asc' | 'desc'
+
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+  open: 'Market is open and accepting trades',
+  active: 'Market is open and accepting trades',
+  closed: 'Trading has stopped, awaiting resolution',
+  determined: 'Outcome determined, awaiting finalization',
+  finalized: 'Resolved and finalized on-chain',
+  disputed: 'Outcome under dispute',
+}
+
+function rejectionReadable(code: string | null | undefined) {
+  if (!code) return 'Not eligible for new positions'
+  return code.replace(/^OFFER_/, '').replace(/_/g, ' ').toLowerCase()
+}
+
 export function MarketList({
   onSelectMarket,
+  selectedMarketId,
 }: {
   onSelectMarket: (market: Market) => void
+  selectedMarketId?: string
 }) {
   const [search, setSearch] = useState(() => getQueryParam('q') ?? '')
   const [debouncedSearch, setDebouncedSearch] = useState(() => getQueryParam('q') ?? '')
@@ -31,10 +51,11 @@ export function MarketList({
   const [status, setStatusState] = useState<string | undefined>(() => getQueryParam('status'))
   const [eligible, setEligibleState] = useState<string | undefined>(() => getQueryParam('eligible') ?? 'yes')
   const [copiedTicker, setCopiedTicker] = useState<string | null>(null)
+  const [sortKey, setSortKey] = useState<SortKey | null>(null)
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Cursor-based pagination: current page cursor + a stack to walk backwards.
   const [cursor, setCursor] = useState<string | undefined>(() => getQueryParam('after'))
   const [cursorStack, setCursorStack] = useState<string[]>([])
 
@@ -43,8 +64,6 @@ export function MarketList({
     setCursorStack([])
   }
 
-  // Debounce search input. Resetting pagination when the debounced value
-  // actually changes happens below via setSearch's wrapper.
   useEffect(() => {
     debounceRef.current = setTimeout(() => {
       setDebouncedSearch(search)
@@ -66,7 +85,6 @@ export function MarketList({
     resetPagination()
   }
 
-  // Sync state to URL query params
   useEffect(() => {
     setQueryParams({
       q: debouncedSearch || undefined,
@@ -93,18 +111,51 @@ export function MarketList({
   }
 
   const markets = page?.data
-
   const hasMore = page?.hasMore ?? false
   const hasPrev = cursorStack.length > 0
 
-  const categories = ['Sports', 'Crypto']
+  const sortedMarkets = useMemo(() => {
+    if (!markets) return markets
+    if (!sortKey) return markets
+    const copy = [...markets]
+    const dir = sortDir === 'asc' ? 1 : -1
+    copy.sort((a, b) => {
+      let av: string | number = ''
+      let bv: string | number = ''
+      switch (sortKey) {
+        case 'title':
+          av = (a.title || '').toLowerCase()
+          bv = (b.title || '').toLowerCase()
+          break
+        case 'category':
+          av = (a.category || '').toLowerCase()
+          bv = (b.category || '').toLowerCase()
+          break
+        case 'status':
+          av = a.status
+          bv = b.status
+          break
+        case 'eligible':
+          av = a.acceptingNewPositions ? 1 : 0
+          bv = b.acceptingNewPositions ? 1 : 0
+          break
+        case 'leverage':
+          av = a.leverage.maxBps
+          bv = b.leverage.maxBps
+          break
+      }
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+      return 0
+    })
+    return copy
+  }, [markets, sortKey, sortDir])
 
+  const categories = ['Sports', 'Crypto']
   const formatCategory = (c: string) =>
     c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
 
   const shouldScrollRef = useRef(false)
-
-  // Scroll to top after page data loads from a pagination click
   useEffect(() => {
     if (shouldScrollRef.current && !isLoading) {
       shouldScrollRef.current = false
@@ -136,43 +187,30 @@ export function MarketList({
     setTimeout(() => setCopiedTicker(null), 1500)
   }
 
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--surface-subtle)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-    color: 'var(--text)',
-    outline: 'none',
-  }
-
-  const thStyle: React.CSSProperties = {
-    padding: '10px 16px',
-    fontSize: 11,
-    fontWeight: 500,
-    color: 'var(--text-dim)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    textAlign: 'left',
-    whiteSpace: 'nowrap',
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
   }
 
   return (
-    <div ref={containerRef} style={{ padding: '16px 0' }}>
+    <div ref={containerRef}>
       {/* Search & filter toolbar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="markets-toolbar">
         <input
           type="text"
           placeholder="Search markets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ ...inputStyle, flex: '1 1 200px', minWidth: 180 }}
+          className="markets-toolbar__input"
         />
         <select
           value={category ?? ''}
           onChange={(e) => setCategory(e.target.value || undefined)}
-          style={{ ...inputStyle, flex: '0 0 auto', cursor: 'pointer' }}
+          className="markets-toolbar__select"
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -182,7 +220,7 @@ export function MarketList({
         <select
           value={status ?? ''}
           onChange={(e) => setStatus(e.target.value || undefined)}
-          style={{ ...inputStyle, flex: '0 0 auto', cursor: 'pointer' }}
+          className="markets-toolbar__select"
         >
           <option value="">All statuses</option>
           <option value="active">Active</option>
@@ -194,7 +232,7 @@ export function MarketList({
         <select
           value={eligible ?? ''}
           onChange={(e) => setEligible(e.target.value || undefined)}
-          style={{ ...inputStyle, flex: '0 0 auto', cursor: 'pointer' }}
+          className="markets-toolbar__select"
         >
           <option value="">All eligibility</option>
           <option value="yes">Accepting quotes</option>
@@ -205,16 +243,7 @@ export function MarketList({
           disabled={isFetching}
           title="Refresh"
           aria-label="Refresh markets"
-          style={{
-            ...inputStyle,
-            flex: '0 0 auto',
-            cursor: isFetching ? 'wait' : 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0 10px',
-            color: 'var(--text)',
-          }}
+          className="markets-toolbar__refresh"
         >
           <svg
             width="14"
@@ -253,41 +282,56 @@ export function MarketList({
         </div>
       ) : (
         <>
-          <div
-            style={{
-              border: '1px solid rgba(238,255,0,0.15)',
-              borderRadius: 12,
-              overflow: 'auto',
-              background: 'var(--card)',
-            }}
-          >
+          <div className="markets-table-wrap">
             <table
               style={{
                 width: '100%',
-                minWidth: 800,
                 borderCollapse: 'collapse',
+                tableLayout: 'fixed',
               }}
             >
+              <colgroup>
+                <col style={{ width: 'auto' }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 90 }} />
+                <col style={{ width: 60 }} />
+              </colgroup>
               <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <th style={thStyle}>Ticker</th>
-                  <th style={thStyle}>Title</th>
-                  <th style={thStyle}>Category</th>
-                  <th style={thStyle}>Provider</th>
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Eligible</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Max Leverage</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Min Notional</th>
+                <tr>
+                  <SortableTh label="Title" sortKey="title" current={sortKey} dir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Category" sortKey="category" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
+                  <SortableTh label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
+                  <SortableTh label="Eligible" sortKey="eligible" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
+                  <SortableTh label="Max Lev." sortKey="leverage" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
+                  <th
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: 'var(--text-dim)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(20,20,20,0.95)',
+                    }}
+                  >
+                    Ticker
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {markets.map((market) => (
+                {sortedMarkets!.map((market) => (
                   <MarketRow
                     key={market.id}
                     market={market}
                     onSelect={onSelectMarket}
                     onCopy={copyTicker}
                     isCopied={copiedTicker === market.ticker}
+                    isSelected={market.id === selectedMarketId}
                   />
                 ))}
               </tbody>
@@ -300,7 +344,8 @@ export function MarketList({
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
+                justifyContent: 'flex-end',
+                gap: 8,
                 marginTop: 12,
                 padding: '0 4px',
               }}
@@ -308,18 +353,8 @@ export function MarketList({
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
                 Page {cursorStack.length + 1}
               </span>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <PageButton
-                  label="Previous"
-                  disabled={!hasPrev}
-                  onClick={goPrev}
-                />
-                <PageButton
-                  label="Next"
-                  disabled={!hasMore}
-                  onClick={goNext}
-                />
-              </div>
+              <PageButton label="Previous" disabled={!hasPrev} onClick={goPrev} />
+              <PageButton label="Next" disabled={!hasMore} onClick={goNext} />
             </div>
           )}
         </>
@@ -328,99 +363,121 @@ export function MarketList({
   )
 }
 
+function SortableTh({
+  label,
+  sortKey,
+  current,
+  dir,
+  onSort,
+  align = 'left',
+}: {
+  label: string
+  sortKey: SortKey
+  current: SortKey | null
+  dir: SortDir
+  onSort: (k: SortKey) => void
+  align?: 'left' | 'center' | 'right'
+}) {
+  const isActive = current === sortKey
+  const arrow = isActive ? (dir === 'asc' ? '▲' : '▼') : '↕'
+  return (
+    <th
+      onClick={() => onSort(sortKey)}
+      style={{
+        padding: '10px 14px',
+        fontSize: 11,
+        fontWeight: 500,
+        color: isActive ? 'var(--yellow)' : 'var(--text-dim)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        textAlign: align,
+        whiteSpace: 'nowrap',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        cursor: 'pointer',
+        userSelect: 'none',
+        background: 'rgba(20,20,20,0.95)',
+      }}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        {label}
+        <span style={{ fontSize: 9, opacity: isActive ? 1 : 0.4 }}>{arrow}</span>
+      </span>
+    </th>
+  )
+}
+
 function MarketRow({
   market,
   onSelect,
   onCopy,
   isCopied,
+  isSelected,
 }: {
   market: Market
   onSelect: (market: Market) => void
   onCopy: (ticker: string) => void
   isCopied: boolean
+  isSelected: boolean
 }) {
   const [hovered, setHovered] = useState(false)
+  const prefetchOdds = usePrefetchMarketOdds()
   const maxLeverage = (market.leverage.maxBps / 10000).toFixed(0)
 
   const tdStyle: React.CSSProperties = {
-    padding: '12px 16px',
+    padding: '12px 14px',
     fontSize: 13,
     color: 'var(--text)',
     whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
   }
+
+  const rowBg = isSelected
+    ? 'rgba(238,255,0,0.08)'
+    : hovered
+      ? 'rgba(238,255,0,0.03)'
+      : 'transparent'
+
+  const statusTitle = STATUS_DESCRIPTIONS[market.status] || market.status
 
   return (
     <tr
       onClick={() => onSelect(market)}
-      onMouseEnter={() => setHovered(true)}
+      onMouseEnter={() => {
+        setHovered(true)
+        prefetchOdds(
+          market.ticker,
+          market.leverage.minBps,
+          market.acceptingNewPositions,
+        )
+      }}
       onMouseLeave={() => setHovered(false)}
       style={{
         cursor: 'pointer',
-        background: hovered ? 'rgba(238,255,0,0.03)' : 'transparent',
+        background: rowBg,
         transition: 'background 0.15s ease',
+        outline: isSelected ? '1px solid rgba(238,255,0,0.3)' : 'none',
       }}
     >
-      <td style={{ ...tdStyle, maxWidth: 200 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span
-            title={market.ticker}
-            style={{
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              fontSize: 12,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-              flex: '1 1 auto',
-            }}
-          >
-            {market.ticker}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onCopy(market.ticker)
-            }}
-            title="Copy ticker"
-            style={{
-              background: 'none',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 4,
-              padding: '2px 6px',
-              cursor: 'pointer',
-              color: isCopied ? 'var(--yellow)' : 'var(--text-dim)',
-              fontSize: 11,
-              lineHeight: 1,
-              transition: 'color 0.15s ease, border-color 0.15s ease',
-              borderColor: isCopied ? 'rgba(238,255,0,0.3)' : 'rgba(255,255,255,0.1)',
-            }}
-          >
-            {isCopied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-      </td>
       <td
         style={{
           ...tdStyle,
-          maxWidth: 280,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          color: 'var(--text-muted)',
+          color: '#ffffff',
+          fontWeight: 500,
         }}
+        title={market.title || market.ticker}
       >
         {market.title || '—'}
       </td>
-      <td style={tdStyle}>
+      <td style={{ ...tdStyle, textAlign: 'center' }}>
         {market.category && (
           <span
             style={{
               fontSize: 11,
               color: 'var(--text-muted)',
               background: 'var(--surface-subtle)',
-              borderRadius: 4,
+              borderRadius: 0,
               padding: '2px 8px',
             }}
           >
@@ -428,94 +485,109 @@ function MarketRow({
           </span>
         )}
       </td>
-      <td style={{ ...tdStyle, fontSize: 12, color: 'var(--text-muted)' }}>
-        {market.provider}
-      </td>
-      <td style={tdStyle}>
+      <td style={{ ...tdStyle, textAlign: 'center' }}>
         <span
+          title={statusTitle}
           style={{
             fontSize: 11,
             fontWeight: 500,
             color: market.status === 'open' ? 'var(--green)' : 'var(--text-muted)',
             background:
-              market.status === 'open'
-                ? 'var(--green-soft)'
-                : 'var(--border)',
+              market.status === 'open' ? 'var(--green-soft)' : 'var(--border)',
             border: `1px solid ${
-              market.status === 'open'
-                ? 'rgba(68,255,151,0.2)'
-                : 'var(--border)'
+              market.status === 'open' ? 'rgba(68,255,151,0.2)' : 'var(--border)'
             }`,
-            borderRadius: 4,
+            borderRadius: 0,
             padding: '2px 8px',
             textTransform: 'uppercase',
+            cursor: 'help',
           }}
         >
           {market.status}
         </span>
       </td>
-      <td style={tdStyle}>
+      <td style={{ ...tdStyle, textAlign: 'center' }}>
         {market.acceptingNewPositions ? (
           <span
+            title="Accepting new leveraged positions"
             style={{
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--green)',
               background: 'var(--green-soft)',
               border: '1px solid rgba(68,255,151,0.2)',
-              borderRadius: 4,
+              borderRadius: 0,
               padding: '2px 8px',
+              cursor: 'help',
             }}
           >
             YES
           </span>
         ) : (
           <span
-            title={market.rejectionReasonCode ?? undefined}
+            title={rejectionReadable(market.rejectionReasonCode)}
             style={{
               fontSize: 11,
               fontWeight: 500,
               color: '#FF6B6B',
               background: 'rgba(255,107,107,0.08)',
               border: '1px solid rgba(255,107,107,0.2)',
-              borderRadius: 4,
+              borderRadius: 0,
               padding: '2px 8px',
-              cursor: market.rejectionReasonCode ? 'help' : undefined,
+              cursor: 'help',
             }}
           >
-            {market.rejectionReasonCode
-              ? market.rejectionReasonCode.replace(/^offer_/, '').replaceAll('_', ' ')
-              : 'NO'}
+            NO
           </span>
         )}
       </td>
-      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: 'var(--yellow)' }}>
+      <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600, color: '#ffffff' }}>
         {maxLeverage}x
       </td>
-      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>
-        ${market.minNotionalUsd}
+      <td style={{ ...tdStyle, textAlign: 'center' }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onCopy(market.ticker)
+          }}
+          title={isCopied ? `Copied ${market.ticker}` : `Copy ticker: ${market.ticker}`}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 0,
+            padding: '4px 8px',
+            cursor: 'pointer',
+            color: isCopied ? 'var(--yellow)' : 'var(--text-dim)',
+            fontSize: 10,
+            lineHeight: 1,
+            transition: 'color 0.15s ease, border-color 0.15s ease',
+            borderColor: isCopied ? 'rgba(238,255,0,0.3)' : 'rgba(255,255,255,0.1)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          {isCopied ? '✓' : ''}
+        </button>
       </td>
     </tr>
   )
 }
 
 function MarketListSkeleton() {
-  const columns = [80, 240, 70, 70, 60, 50, 60, 60]
-  const rows = 15
+  const columns = [240, 70, 60, 50, 60, 40]
+  const rows = 18
   const rowTdStyle: React.CSSProperties = {
-    padding: '12px 16px',
+    padding: '12px 14px',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
   }
   return (
-    <div
-      style={{
-        border: '1px solid rgba(238,255,0,0.15)',
-        borderRadius: 12,
-        overflow: 'hidden',
-        background: 'var(--card)',
-      }}
-    >
-      <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse' }}>
+    <div className="markets-table-wrap">
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           {Array.from({ length: rows }).map((_, r) => (
             <tr key={r}>
@@ -526,7 +598,7 @@ function MarketListSkeleton() {
                       height: 10,
                       width: w,
                       maxWidth: '100%',
-                      borderRadius: 4,
+                      borderRadius: 0,
                       background: 'rgba(255,255,255,0.06)',
                       animation: 'marketSkeletonPulse 1.4s ease-in-out infinite',
                       animationDelay: `${(r * 40 + c * 20) % 600}ms`,
@@ -568,7 +640,7 @@ function PageButton({
       style={{
         background: hovered && !disabled ? 'rgba(238,255,0,0.06)' : 'var(--surface-subtle)',
         border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: 6,
+        borderRadius: 0,
         padding: '6px 14px',
         fontSize: 12,
         color: disabled ? '#333333' : 'var(--text)',

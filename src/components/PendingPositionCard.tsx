@@ -1,7 +1,10 @@
 import type { PendingPositionStub } from '../store/pendingPositions'
+import { useMarketTitle } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 
 export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
+  const marketTitle = useMarketTitle(stub.marketTicker)
+  const displayTitle = marketTitle || stub.marketTicker
   const isYes = stub.side === 'yes'
   const sideColor = isYes ? 'var(--green)' : 'var(--red)'
   const sideSoft = isYes ? 'var(--green-soft)' : 'var(--red-soft)'
@@ -20,7 +23,7 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
             gap: 10,
             background: 'rgba(245,166,35,0.08)',
             border: '1px solid rgba(245,166,35,0.22)',
-            borderRadius: 8,
+            borderRadius: 0,
             padding: '10px 12px',
             marginBottom: 16,
             position: 'relative',
@@ -80,15 +83,19 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
           <div style={{ minWidth: 0 }}>
             <div
               style={{
-                fontSize: 'var(--fs-md)',
-                fontWeight: 700,
-                color: 'var(--text)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#ffffff',
                 overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
+                lineHeight: 1.3,
               }}
+              title={displayTitle}
             >
-              {stub.marketTicker}
+              {displayTitle}
             </div>
             <div
               style={{
@@ -109,7 +116,7 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
               fontWeight: 700,
               letterSpacing: 0.6,
               padding: '4px 10px',
-              borderRadius: 999,
+              borderRadius: 0,
               background: sideSoft,
               border: `1px solid ${sideBorder}`,
               color: sideColor,
@@ -202,7 +209,7 @@ function Shimmer({
       style={{
         width,
         height,
-        borderRadius: 4,
+        borderRadius: 0,
         background: tone === 'accent' ? 'rgba(238,255,0,0.10)' : 'rgba(255,255,255,0.06)',
         animation: 'pendingShimmer 1.4s ease-in-out infinite',
         animationDelay: `${delay}ms`,

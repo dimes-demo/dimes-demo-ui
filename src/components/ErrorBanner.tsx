@@ -15,7 +15,7 @@ export function ErrorBanner({ error, onDismiss }: { error: unknown; onDismiss?: 
       style={{
         marginTop: 12,
         padding: '12px 14px',
-        borderRadius: 10,
+        borderRadius: 0,
         border: '1px solid rgba(224, 82, 82, 0.35)',
         background: 'linear-gradient(180deg, rgba(224, 82, 82, 0.08) 0%, rgba(224, 82, 82, 0.02) 100%)',
         display: 'flex',

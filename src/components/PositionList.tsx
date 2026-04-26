@@ -8,26 +8,13 @@ import { SettledCard } from './SettledCard'
 
 type Tab = 'active' | 'closed'
 
-type SortOption = 'newest' | 'oldest' | 'recently_closed'
-
-const sortConfig: Record<SortOption, { sortBy: string; sortDirection: string; label: string }> = {
-  newest: { sortBy: 'created_at', sortDirection: 'desc', label: 'Newest first' },
-  oldest: { sortBy: 'created_at', sortDirection: 'asc', label: 'Oldest first' },
-  recently_closed: { sortBy: 'closed_at', sortDirection: 'desc', label: 'Recently closed' },
-}
-
-const activeSortOptions: SortOption[] = ['newest', 'oldest']
-const closedSortOptions: SortOption[] = ['newest', 'oldest', 'recently_closed']
-
 export function PositionList() {
   const [tab, setTab] = useState<Tab>('active')
-  const [sort, setSort] = useState<SortOption>('newest')
 
-  const { sortBy, sortDirection } = sortConfig[sort]
   const apiState = tab === 'active' ? 'active' : 'inactive'
   const { data: positions, isLoading } = usePositions({
-    sortBy,
-    sortDirection,
+    sortBy: 'created_at',
+    sortDirection: 'desc',
     state: apiState,
     expand: ['unwinds'],
   })
@@ -50,35 +37,17 @@ export function PositionList() {
       ),
   )
 
-  const currentSortOptions = tab === 'active' ? activeSortOptions : closedSortOptions
-
   const handleTabChange = (newTab: Tab) => {
     setTab(newTab)
-    if (newTab === 'active' && sort === 'recently_closed') {
-      setSort('newest')
-    }
-  }
-
-  const selectStyle: React.CSSProperties = {
-    background: 'var(--surface-subtle)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: 6,
-    padding: '8px 12px',
-    fontSize: 13,
-    color: 'var(--text)',
-    outline: 'none',
-    cursor: 'pointer',
-    fontFamily: 'var(--font)',
   }
 
   return (
     <div style={{ padding: '24px 0' }}>
-      {/* Tabs + Sort */}
+      {/* Tabs */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
           marginBottom: 20,
         }}
       >
@@ -87,7 +56,7 @@ export function PositionList() {
             display: 'flex',
             gap: 4,
             background: 'var(--card)',
-            borderRadius: 8,
+            borderRadius: 0,
             padding: 4,
             width: 'fit-content',
           }}
@@ -98,7 +67,7 @@ export function PositionList() {
               onClick={() => handleTabChange(t)}
               style={{
                 padding: '8px 20px',
-                borderRadius: 6,
+                borderRadius: 0,
                 border: 'none',
                 background: tab === t ? 'var(--card-elevated)' : 'transparent',
                 color: tab === t ? 'var(--text)' : 'var(--text-dim)',
@@ -125,18 +94,6 @@ export function PositionList() {
             </button>
           ))}
         </div>
-
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          style={selectStyle}
-        >
-          {currentSortOptions.map((opt) => (
-            <option key={opt} value={opt}>
-              {sortConfig[opt].label}
-            </option>
-          ))}
-        </select>
       </div>
 
       {/* Loading */}
