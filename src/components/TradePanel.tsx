@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
+import { useMarketOdds } from '../hooks/useMarketOdds'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -23,8 +24,20 @@ import { Field } from './ui/Field'
 import { Input } from './ui/Input'
 
 const PRESET_AMOUNTS = [50, 100, 500] as const
-const DEFAULT_SLIPPAGE_BPS = 200
-const SLIPPAGE_PRESETS_BPS = [50, 100, 200, 500] as const
+const DEFAULT_SLIPPAGE_BPS = 800 // 8%
+const DEFAULT_LEVERAGE_BPS = 20000 // 2x
+const SLIPPAGE_PRESETS_BPS = [200, 500, 800] as const
+const FORCED_LEVERAGE_STEP_BPS = 5000 // 0.5x
+
+function clampLeverageToMarket(target: number, market: { leverage: { minBps: number; maxYesBps: number; maxNoBps: number; stepBps: number } }, side: 'yes' | 'no' = 'yes') {
+  const step = Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)
+  const minBps = market.leverage.minBps
+  const maxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
+  const maxSteps = Math.max(0, Math.floor((maxBps - minBps) / step))
+  const clamped = Math.min(Math.max(target, minBps), minBps + maxSteps * step)
+  const k = Math.round((clamped - minBps) / step)
+  return minBps + Math.min(Math.max(k, 0), maxSteps) * step
+}
 
 export function TradePanel({
   market,
@@ -35,19 +48,17 @@ export function TradePanel({
 }) {
   const [side, setSide] = useState<'yes' | 'no'>('yes')
   const [collateralUsd, setCollateralUsd] = useState('')
-  const [leverageBps, setLeverageBps] = useState(market.leverage.minBps)
+  const [leverageBps, setLeverageBps] = useState(() =>
+    clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market, side),
+  )
+  const [showTicker, setShowTicker] = useState(false)
 
   const sideMaxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
 
   useEffect(() => {
-    const { minBps, stepBps } = market.leverage
-    const maxSteps = Math.floor((sideMaxBps - minBps) / stepBps)
-    setLeverageBps((prev) => {
-      const clamped = Math.min(Math.max(prev, minBps), minBps + maxSteps * stepBps)
-      const k = Math.round((clamped - minBps) / stepBps)
-      return minBps + Math.min(Math.max(k, 0), maxSteps) * stepBps
-    })
-  }, [market.ticker, market.leverage, sideMaxBps])
+    setLeverageBps(clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market, side))
+    setShowTicker(false)
+  }, [market.ticker, market.leverage.minBps, market.leverage.maxYesBps, market.leverage.maxNoBps, market.leverage.stepBps, side])
   const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
@@ -100,8 +111,6 @@ export function TradePanel({
     }
   }, [createSuccess, queryClient])
 
-  // Clean up the optimistic stub if the flow fails anywhere after the click:
-  // wallet rejection / write error, or on-chain revert.
   const stubKey = offer?.onChainPositionKey
   useEffect(() => {
     if (!stubKey) return
@@ -134,7 +143,6 @@ export function TradePanel({
 
   const handleMax = () => {
     if (!usdcBalance) return
-    // USDC has 6 decimals; show a trimmed dollar value.
     const asDollars = Number(usdcBalance.value) / 1_000_000
     updateCollateral(asDollars.toFixed(2))
   }
@@ -266,11 +274,23 @@ export function TradePanel({
     create(offer)
   }
 
+  const headlineText = showTicker
+    ? market.ticker
+    : market.title || market.ticker
+
+  const odds = useMarketOdds(
+    market.ticker,
+    market.acceptingNewPositions,
+    market.leverage.minBps,
+  )
+  const formatCents = (p: number) =>
+    p < 0.1 ? `${(p * 100).toFixed(1)}¢` : `${Math.round(p * 100)}¢`
+
   return (
-    <CardShell variant="yellow">
+    <CardShell variant="yellow" className="trade-panel-card-shell">
       <div
         className="trade-panel"
-        style={{ padding: '22px 24px 20px', position: 'relative' }}
+        style={{ padding: '24px 24px 20px', position: 'relative' }}
       >
         {errorPulseNonce > 0 && (
           <span
@@ -279,23 +299,35 @@ export function TradePanel({
             aria-hidden
           />
         )}
-        {/* Header */}
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            marginBottom: 20,
+            marginBottom: 18,
             gap: 12,
           }}
         >
-          <div>
-            <div style={{ fontSize: 'var(--fs-md)', fontWeight: 700, color: 'var(--text)' }}>
-              {market.ticker}
-            </div>
-            <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: 2 }}>
-              {market.title}
-            </div>
+          <div
+            onClick={() => setShowTicker((s) => !s)}
+            title={showTicker ? 'Click for title' : 'Click for ticker'}
+            style={{
+              minWidth: 0,
+              flex: '1 1 auto',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 600,
+              color: '#ffffff',
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              textOverflow: 'ellipsis',
+              fontFamily: showTicker ? 'monospace' : 'var(--font)',
+            }}
+          >
+            {headlineText}
           </div>
           <button
             type="button"
@@ -305,53 +337,45 @@ export function TradePanel({
               background: 'none',
               border: 'none',
               color: 'var(--text-dim)',
-              fontSize: 20,
+              fontSize: 18,
               cursor: 'pointer',
               padding: '0 4px',
               lineHeight: 1,
+              flexShrink: 0,
             }}
           >
             ✕
           </button>
         </div>
 
-        {/* Side selector */}
+        {/* Side selector — odds shown under YES/NO when available */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: 8,
-            marginBottom: 20,
+            marginBottom: 18,
           }}
         >
-          <Button
-            variant="side-yes"
+          <SideButton
+            label="YES"
+            sub={odds ? formatCents(odds.yes) : market.yesSubTitle}
+            variant="yes"
             active={side === 'yes'}
             onClick={() => { setSide('yes'); clearOffer(); }}
-          >
-            YES
-          </Button>
-          <Button
-            variant="side-no"
+          />
+          <SideButton
+            label="NO"
+            sub={odds ? formatCents(odds.no) : null}
+            variant="no"
             active={side === 'no'}
             onClick={() => { setSide('no'); clearOffer(); }}
-          >
-            NO
-          </Button>
+          />
         </div>
 
         {/* Collateral */}
-        <div style={{ marginBottom: 20 }}>
-          <Field
-            label="Collateral"
-            action={
-              usdcBalance ? (
-                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-dim)' }}>
-                  Balance: {(Number(usdcBalance.value) / 1_000_000).toFixed(2)} USDC
-                </span>
-              ) : null
-            }
-          >
+        <div style={{ marginBottom: 18 }}>
+          <Field label="Collateral">
             <div className="correction-host">
               <Input
                 type="number"
@@ -360,7 +384,6 @@ export function TradePanel({
                 onChange={(e) => updateCollateral(e.target.value)}
                 placeholder="0.00"
                 leadingSlot="$"
-                trailingSlot="USDC"
               />
               {correction?.field === 'collateral' && (
                 <span
@@ -371,35 +394,37 @@ export function TradePanel({
               )}
             </div>
           </Field>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div className="quick-btn-row">
             {PRESET_AMOUNTS.map((amount) => (
-              <Button
+              <button
                 key={amount}
-                variant="chip"
+                type="button"
+                className="quick-btn"
                 onClick={() => addToCollateral(amount)}
               >
                 +${amount}
-              </Button>
+              </button>
             ))}
-            <Button
-              variant="chip"
+            <button
+              type="button"
+              className="quick-btn"
               onClick={handleMax}
               disabled={!usdcBalance}
             >
               MAX
-            </Button>
+            </button>
           </div>
         </div>
 
-        {/* Leverage slider */}
+        {/* Leverage card */}
         <div
-          className="correction-host"
+          className="lev-wrap correction-host"
           data-correcting={correction?.field === 'leverage' && leverageTween.active ? 'true' : 'false'}
         >
           <LeverageSlider
             min={market.leverage.minBps}
             max={sideMaxBps}
-            step={market.leverage.stepBps}
+            step={Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)}
             value={displayLeverageBps}
             onChange={(v) => { setLeverageBps(v); clearOffer(); }}
           />
@@ -480,7 +505,7 @@ export function TradePanel({
         </div>
 
         {/* Get quote */}
-        <div style={{ marginTop: 20, position: 'relative' }}>
+        <div style={{ marginTop: 18, position: 'relative' }}>
           <Button
             variant="primary"
             fullWidth
@@ -568,6 +593,61 @@ export function TradePanel({
   )
 }
 
+function SideButton({
+  label,
+  sub,
+  variant,
+  active,
+  onClick,
+}: {
+  label: string
+  sub: string | null
+  variant: 'yes' | 'no'
+  active: boolean
+  onClick: () => void
+}) {
+  const isYes = variant === 'yes'
+  const accent = isYes ? 'var(--green)' : 'var(--red)'
+  const accentSoft = isYes ? 'var(--green-soft)' : 'var(--red-soft)'
+  const accentBorder = isYes ? 'var(--green-border)' : 'var(--red-border)'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        padding: '12px 0',
+        borderRadius: 'var(--radius)',
+        border: `1px solid ${active ? accentBorder : 'var(--border)'}`,
+        background: active ? accentSoft : 'transparent',
+        color: active ? accent : 'var(--text-muted)',
+        cursor: 'pointer',
+        fontFamily: 'var(--font)',
+        transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
+      }}
+    >
+      <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.04em' }}>{label}</span>
+      {sub ? (
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 500,
+            opacity: active ? 0.85 : 0.6,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {sub}
+        </span>
+      ) : null}
+    </button>
+  )
+}
+
 function QuoteSkeleton() {
   const rowWidths = [72, 92, 84, 110, 96, 88]
   return (
@@ -576,7 +656,7 @@ function QuoteSkeleton() {
         style={{
           height: 12,
           width: 110,
-          borderRadius: 4,
+          borderRadius: 0,
           background: 'rgba(255,255,255,0.08)',
           marginBottom: 14,
           animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
@@ -597,7 +677,7 @@ function QuoteSkeleton() {
             style={{
               height: 10,
               width: 74,
-              borderRadius: 4,
+              borderRadius: 0,
               background: 'rgba(255,255,255,0.05)',
               animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
               animationDelay: `${i * 60}ms`,
@@ -607,7 +687,7 @@ function QuoteSkeleton() {
             style={{
               height: 10,
               width: w,
-              borderRadius: 4,
+              borderRadius: 0,
               background: 'rgba(238,255,0,0.08)',
               animation: 'quoteSkeletonPulse 1.4s ease-in-out infinite',
               animationDelay: `${i * 60 + 120}ms`,
@@ -621,7 +701,7 @@ function QuoteSkeleton() {
             height: 3,
             width: '100%',
             background: 'rgba(255,255,255,0.06)',
-            borderRadius: 2,
+            borderRadius: 0,
             overflow: 'hidden',
             position: 'relative',
           }}
@@ -634,7 +714,7 @@ function QuoteSkeleton() {
               height: '100%',
               width: '30%',
               background: 'var(--yellow)',
-              borderRadius: 2,
+              borderRadius: 0,
               animation: 'quoteSkeletonSlide 1.4s ease-in-out infinite',
             }}
           />

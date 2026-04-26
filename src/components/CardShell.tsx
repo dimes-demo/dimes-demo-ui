@@ -9,8 +9,8 @@ const variantStyles: Record<
   yellow: {
     glowColor: 'rgba(238,255,0,0.06)',
     accentColor: 'var(--yellow)',
-    borderColor: 'var(--yellow-border)',
-    borderHoverColor: 'rgba(238,255,0,0.35)',
+    borderColor: 'var(--border)',
+    borderHoverColor: 'var(--border-strong)',
   },
   settled: {
     glowColor: 'rgba(255,255,255,0.03)',
@@ -25,11 +25,13 @@ export function CardShell({
   children,
   onClick,
   style,
+  className,
 }: {
   variant?: CardVariant
   children: ReactNode
   onClick?: () => void
   style?: CSSProperties
+  className?: string
 }) {
   const v = variantStyles[variant]
   const [hovered, setHovered] = useState(false)
@@ -39,6 +41,7 @@ export function CardShell({
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      className={className}
       style={{
         background: `linear-gradient(180deg, var(--card) 0%, var(--card) 85%, ${v.glowColor} 100%)`,
         border: `1px solid ${hovered ? v.borderHoverColor : v.borderColor}`,

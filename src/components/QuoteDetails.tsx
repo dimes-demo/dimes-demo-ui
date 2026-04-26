@@ -76,10 +76,7 @@ export function QuoteDetails({ offer, hideExpiry = false }: { offer: Offer; hide
         label={offer.provider === 'kalshi' ? 'Kalshi Fee' : 'Polymarket Fee'}
         value={`$${offer.expectedOpenTradingFeeUsd}`}
       />
-      <StatRow
-        label="Lifetime Fee APR"
-        value={`${(offer.lifetimeFeeAprBps / 100).toFixed(1)}%`}
-      />
+      <StatRow label="Time-based fee" value="0.01%" />
 
       <div
         style={{
@@ -159,7 +156,7 @@ function QuoteExpiryBar({
           height: 3,
           width: '100%',
           background: 'rgba(255,255,255,0.06)',
-          borderRadius: 2,
+          borderRadius: 0,
           overflow: 'hidden',
         }}
       >
@@ -168,7 +165,7 @@ function QuoteExpiryBar({
             height: '100%',
             width: `${pct * 100}%`,
             background: barColor,
-            borderRadius: 2,
+            borderRadius: 0,
             transition: 'width 1s linear, background 0.3s ease',
           }}
         />

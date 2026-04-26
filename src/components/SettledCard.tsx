@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ClosedPosition, PositionUnwindList } from '../api/types'
+import { useMarketTitle } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 import { StatRow } from './StatRow'
 import { LeverageChart } from './LeverageChart'
@@ -59,15 +60,14 @@ export function SettledCard({
   const unwindData = unwinds
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [viewMode, setViewMode] = useViewMode('settledCard.viewMode')
+  const marketTitle = useMarketTitle(position.marketTicker)
+  const displayTitle = marketTitle || position.marketTicker
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value)
     setCopiedKey(key)
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
   }
-
-  const truncateMiddle = (value: string, head = 8, tail = 6) =>
-    value.length <= head + tail + 1 ? value : `${value.slice(0, head)}…${value.slice(-tail)}`
 
   const realizedPnl = parseFloat(position.result.realizedPnlUsd)
   const pnlColor = realizedPnl >= 0 ? 'var(--green)' : 'var(--red)'
@@ -120,52 +120,22 @@ export function SettledCard({
             <div
               onClick={() => copyToClipboard(position.marketTicker, 'ticker')}
               style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: copiedKey === 'ticker' ? 'var(--green)' : 'var(--text)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: copiedKey === 'ticker' ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 transition: 'color 0.2s',
+                lineHeight: 1.3,
               }}
-              title={copiedKey === 'ticker' ? 'Copied!' : position.marketTicker}
+              title={copiedKey === 'ticker' ? 'Copied!' : displayTitle}
             >
-              {copiedKey === 'ticker' ? '✓ Copied to clipboard' : position.marketTicker}
+              {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
             </div>
-            <span
-              onClick={() => copyToClipboard(position.id, 'id')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'id' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'id' ? 'Copied!' : position.id}
-            >
-              {copiedKey === 'id' ? '✓ Copied to clipboard' : truncateMiddle(position.id)}
-            </span>
-            <span
-              onClick={() => copyToClipboard(position.onChainPositionKey, 'key')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'key' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'key' ? 'Copied!' : position.onChainPositionKey}
-            >
-              {copiedKey === 'key' ? '✓ Copied to clipboard' : truncateMiddle(position.onChainPositionKey)}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span
@@ -181,7 +151,7 @@ export function SettledCard({
                     ? 'rgba(224,82,82,0.2)'
                     : 'var(--border)'
                 }`,
-                borderRadius: 4,
+                borderRadius: 0,
                 padding: '2px 8px',
                 textTransform: 'uppercase',
               }}
@@ -200,7 +170,7 @@ export function SettledCard({
               color: 'var(--text)',
               background: 'var(--surface-subtle)',
               border: '1px solid var(--border)',
-              borderRadius: 6,
+              borderRadius: 0,
               padding: '8px 10px',
               marginBottom: 14,
             }}

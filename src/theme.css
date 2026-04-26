@@ -25,10 +25,10 @@
   --red-soft: rgba(224, 82, 82, 0.08);
   --red-border: rgba(224, 82, 82, 0.3);
 
-  /* Shape */
-  --radius-sm: 4px;
-  --radius: 8px;
-  --radius-lg: 12px;
+  /* Shape — sharp corners across the app */
+  --radius-sm: 0px;
+  --radius: 0px;
+  --radius-lg: 0px;
 
   /* Type scale */
   --fs-xs: 12px;
@@ -42,6 +42,6 @@
   --font: 'Bai Jamjuree', sans-serif;
 
   /* Layout */
-  --container-max: 960px;
-  --container-pad: clamp(16px, 4vw, 32px);
+  --container-max: 1400px;
+  --container-pad: clamp(12px, 2vw, 24px);
 }

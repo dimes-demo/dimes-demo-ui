@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
   MicroStat,
-  PnlHero,
   StatGroup,
   ViewToggle,
   fadeInKeyframes,
@@ -13,10 +12,10 @@ import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
+import { useMarketTitle } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
-import { HealthRing } from './HealthRing'
 import { LeverageChart } from './LeverageChart'
 import { formatSlippageBps } from '../utils/format'
 
@@ -46,6 +45,8 @@ export function PositionCard({
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [viewMode, setViewMode] = useViewMode('positionCard.viewMode')
+  const marketTitle = useMarketTitle(position.marketTicker)
+  const displayTitle = marketTitle || position.marketTicker
 
   useEffect(() => {
     if (isCloseConfirmed) {
@@ -58,9 +59,6 @@ export function PositionCard({
     setCopiedKey(key)
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
   }
-
-  const truncateMiddle = (value: string, head = 8, tail = 6) =>
-    value.length <= head + tail + 1 ? value : `${value.slice(0, head)}…${value.slice(-tail)}`
 
   const isPendingPosition = position.status === 'pending'
   const isOpenPosition = position.status === 'open'
@@ -136,6 +134,26 @@ export function PositionCard({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
+  // Distance to liquidation: a directional gap between current price and the
+  // price at which the position would be liquidated. For YES the position is
+  // liquidated when price falls TO or BELOW the liquidation price; for NO the
+  // direction flips. Past that point the position is over.
+  const currentPrice = parseFloat(position.current.markPriceUsd)
+  const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
+  let distancePctDisplay = '—'
+  if (currentPrice > 0 && liquidationPrice > 0) {
+    const inBuffer = isYes
+      ? currentPrice > liquidationPrice
+      : currentPrice < liquidationPrice
+    if (inBuffer) {
+      const pct = (Math.abs(currentPrice - liquidationPrice) / currentPrice) * 100
+      distancePctDisplay = `${pct.toFixed(1)}%`
+    }
+  }
+
+  const positionValueUsd = parseFloat(position.current.positionValueUsd)
+  const investedUsd = entryCollateral
+
   return (
     <CardShell variant="yellow">
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
@@ -147,7 +165,7 @@ export function PositionCard({
               gap: 10,
               background: 'rgba(245,166,35,0.08)',
               border: '1px solid rgba(245,166,35,0.22)',
-              borderRadius: 8,
+              borderRadius: 0,
               padding: '10px 12px',
               marginBottom: 16,
               position: 'relative',
@@ -222,52 +240,22 @@ export function PositionCard({
             <div
               onClick={() => copyToClipboard(position.marketTicker, 'ticker')}
               style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: copiedKey === 'ticker' ? 'var(--green)' : 'var(--text)',
+                fontSize: 14,
+                fontWeight: 600,
+                color: copiedKey === 'ticker' ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
                 cursor: 'pointer',
                 transition: 'color 0.2s',
+                lineHeight: 1.3,
               }}
-              title={copiedKey === 'ticker' ? 'Copied!' : position.marketTicker}
+              title={copiedKey === 'ticker' ? 'Copied!' : displayTitle}
             >
-              {copiedKey === 'ticker' ? '✓ Copied to clipboard' : position.marketTicker}
+              {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
             </div>
-            <span
-              onClick={() => copyToClipboard(position.id, 'id')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'id' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'id' ? 'Copied!' : position.id}
-            >
-              {copiedKey === 'id' ? '✓ Copied to clipboard' : truncateMiddle(position.id)}
-            </span>
-            <span
-              onClick={() => copyToClipboard(position.onChainPositionKey, 'key')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'key' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'key' ? 'Copied!' : position.onChainPositionKey}
-            >
-              {copiedKey === 'key' ? '✓ Copied to clipboard' : truncateMiddle(position.onChainPositionKey)}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span
@@ -281,7 +269,7 @@ export function PositionCard({
                 border: `1px solid ${
                   isYes ? 'rgba(68,255,151,0.2)' : 'rgba(224,82,82,0.2)'
                 }`,
-                borderRadius: 4,
+                borderRadius: 0,
                 padding: '2px 8px',
                 textTransform: 'uppercase',
               }}
@@ -303,49 +291,26 @@ export function PositionCard({
                   : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
                 }`,
-                borderRadius: 4,
+                borderRadius: 0,
                 padding: '2px 8px',
                 textTransform: 'uppercase',
               }}
             >
               {position.status === 'pending' ? 'created' : position.status}
             </span>
-            <HealthRing healthBps={position.risk.healthBps} />
           </div>
         </div>
 
-        {/* Margin buffer info */}
-        <div
-          style={{
-            background: 'rgba(238,255,0,0.04)',
-            border: '1px solid rgba(238,255,0,0.1)',
-            borderRadius: 8,
-            padding: '10px 12px',
-            marginBottom: 16,
-          }}
-        >
-          <div style={{ fontSize: 12, color: 'var(--yellow)', fontWeight: 500 }}>
-            You have a ${position.risk.marginBufferUsd} margin buffer
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-            (price needs to drop {(position.risk.liquidationBufferBps / 100).toFixed(1)}% to trigger
-            liquidation)
-          </div>
-        </div>
-
-        {/* View toggle */}
-        <ViewToggle mode={viewMode} onChange={setViewMode} />
+        {/* View toggle muted to keep the card calm */}
+        <ViewToggle
+          mode={viewMode}
+          onChange={setViewMode}
+          accent="rgba(255,255,255,0.08)"
+          accentInk="var(--text)"
+        />
 
         {viewMode === 'simple' ? (
-          <div style={{ animation: 'fadeIn 0.2s ease' }}>
-            <PnlHero
-              label="PnL"
-              value={`${pnlPrefix}$${Math.abs(pnlValue).toFixed(2)}`}
-              pctValue={`${pnlPrefix}${roePct}%`}
-              color={pnlColor}
-            />
-
-            {/* Glance grid */}
+          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
             <div
               style={{
                 display: 'grid',
@@ -353,21 +318,41 @@ export function PositionCard({
                 gap: '14px 18px',
               }}
             >
-              <MicroStat label="Current price" value={`$${position.current.markPriceUsd}`} />
               <MicroStat
-                label="Liquidation"
+                label="Position value"
+                value={`$${positionValueUsd.toFixed(2)}`}
+              />
+              <MicroStat
+                label="Invested"
+                value={`$${investedUsd.toFixed(2)}`}
+              />
+              <MicroStat
+                label="Net PnL"
+                value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
+                valueColor={netPnlColor}
+              />
+              <MicroStat
+                label="Distance to liquidation"
+                value={distancePctDisplay}
+              />
+              <MicroStat
+                label="Current price"
+                value={`$${position.current.markPriceUsd}`}
+              />
+              <MicroStat
+                label="Liquidation price"
                 value={`$${position.risk.currentLiquidationPriceUsd}`}
                 valueColor="#F5A623"
               />
               <MicroStat label="Time to resolution" value={timeDisplay} />
               <MicroStat
-                label="Effective leverage"
+                label="Weighted leverage"
                 value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
               />
             </div>
           </div>
         ) : (
-          <div style={{ animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
             <StatGroup label="Pricing">
               <StatRow label="Quote Price" value={`$${position.entry.priceUsd}`} />
               <StatRow
@@ -377,9 +362,17 @@ export function PositionCard({
               />
               <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
               <StatRow
+                label="Exit Price"
+                value={`$${position.current.markPriceUsd}`}
+              />
+              <StatRow
                 label="Liquidation Price"
                 value={`$${position.risk.currentLiquidationPriceUsd}`}
                 valueColor="#F5A623"
+              />
+              <StatRow
+                label="Distance to liquidation"
+                value={distancePctDisplay}
               />
             </StatGroup>
 
@@ -391,6 +384,10 @@ export function PositionCard({
               <StatRow
                 label="Current Notional"
                 value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
+              />
+              <StatRow
+                label="Margin Buffer"
+                value={`$${parseFloat(position.risk.marginBufferUsd).toFixed(2)}`}
               />
             </StatGroup>
 
@@ -406,13 +403,19 @@ export function PositionCard({
                 valueColor={netPnlColor}
               />
               <StatRow
-                label="Accrued Fees"
+                label="Origination Fee"
+                value={`$${parseFloat(position.entry.originationFeeUsd).toFixed(2)} (${(position.entry.originationFeeBps / 100).toFixed(2)}%)`}
+              />
+              <StatRow
+                label="Time-based fees accrued"
                 value={`$${accruedFees.toFixed(2)}`}
                 valueColor="var(--text-muted)"
               />
+              <StatRow label="Time-based fee rate" value="0.01% APR" />
               <StatRow
-                label="Lifetime Fee APR"
-                value={`${(position.fees.lifetimeAprBps / 100).toFixed(1)}%`}
+                label="Total fees paid"
+                value={`$${(parseFloat(position.entry.originationFeeUsd) + accruedFees).toFixed(2)}`}
+                valueColor="var(--text)"
               />
               <StatRow
                 label="Execution Slippage"
@@ -427,7 +430,11 @@ export function PositionCard({
                 value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
               />
               <StatRow
-                label="Effective"
+                label="Current"
+                value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+              />
+              <StatRow
+                label="Weighted"
                 value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
               />
               <div style={{ marginTop: 10 }}>
@@ -452,7 +459,7 @@ export function PositionCard({
             style={{
               width: '100%',
               padding: '12px 0',
-              borderRadius: 8,
+              borderRadius: 0,
               border: '1px solid rgba(255,255,255,0.1)',
               background: 'transparent',
               color: isBusy ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)',

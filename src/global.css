@@ -202,6 +202,91 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------------
+   Leverage card + quick preset buttons (multiply-demo aesthetic).
+   -------------------------------------------------------------------------- */
+
+.lev-wrap {
+  position: relative;
+  background: #0e0e0e;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 4px 18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.lev-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 80% at 50% 110%,
+    rgba(238, 255, 0, 0.18),
+    rgba(238, 255, 0, 0) 60%
+  );
+  pointer-events: none;
+}
+
+.lev-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(238, 255, 0, 0.4),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.lev-wrap > * {
+  position: relative;
+}
+
+.quick-btn-row {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.quick-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #1a1a1a;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-btn:hover:not(:disabled) {
+  background: rgba(238, 255, 0, 0.06);
+  border-color: rgba(238, 255, 0, 0.2);
+  color: var(--text);
+}
+
+.quick-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------------
    Advanced disclosure (see TradePanel.tsx).
    -------------------------------------------------------------------------- */
 
@@ -409,10 +494,194 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------------
+   Markets + trade panel side-by-side layout.
+   - Columns stretch so the trade panel matches the markets table height.
+   - Panel column starts with a spacer so its CardShell tops the table-headers
+     row (not the search toolbar).
+   -------------------------------------------------------------------------- */
+
+.markets-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 0;
+  align-items: stretch;
+}
+
+.markets-layout__list {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.markets-layout__panel {
+  min-width: 0;
+  margin-left: -1px;
+  display: flex;
+  flex-direction: column;
+}
+
+.markets-layout__panel-fill {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.trade-panel-empty {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+  min-height: 320px;
+}
+
+@media (max-width: 1024px) {
+  .markets-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .markets-layout__panel {
+    margin-left: 0;
+  }
+
+  .markets-layout__panel > [aria-hidden] {
+    display: none;
+  }
+
+  .trade-panel-empty {
+    flex: 0 0 auto;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Markets toolbar (search + custom-styled dropdowns).
+   -------------------------------------------------------------------------- */
+
+.markets-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.markets-toolbar__input,
+.markets-toolbar__select,
+.markets-toolbar__refresh {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  font-family: var(--font);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.markets-toolbar__input {
+  flex: 1 1 200px;
+  min-width: 180px;
+}
+
+.markets-toolbar__input::placeholder {
+  color: var(--text-dim);
+}
+
+.markets-toolbar__input:focus,
+.markets-toolbar__select:focus {
+  border-color: rgba(238, 255, 0, 0.35);
+  background-color: var(--card-elevated);
+}
+
+.markets-toolbar__select {
+  flex: 0 0 auto;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color-scheme: dark;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.markets-toolbar__select:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.markets-toolbar__select option {
+  background-color: #141414;
+  color: var(--text);
+}
+
+.markets-toolbar__refresh {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.markets-toolbar__refresh:hover:not(:disabled) {
+  border-color: rgba(238, 255, 0, 0.35);
+}
+
+.markets-toolbar__refresh:disabled {
+  cursor: wait;
+}
+
+/* ---------------------------------------------------------------------------
+   Markets table (no inner scroll; right edge flat to meet trade panel).
+   -------------------------------------------------------------------------- */
+
+.markets-table-wrap {
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--card);
+}
+
+/* ---------------------------------------------------------------------------
+   Custom scrollbar (markets table, etc).
+   -------------------------------------------------------------------------- */
+
+.dimes-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(238, 255, 0, 0.25) transparent;
+}
+
+.dimes-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dimes-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dimes-scroll::-webkit-scrollbar-thumb {
+  background: rgba(238, 255, 0, 0.15);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.dimes-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(238, 255, 0, 0.35);
+}
+
+.dimes-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
    Auto-correction feedback (see TradePanel.tsx).
-   When a quote error returns a constraint hint, the offending input is
-   auto-adjusted and a brief amber rail-sweep + glow halo plays on top of it.
-   No shake — the system is helping, not scolding.
    -------------------------------------------------------------------------- */
 
 :root {
@@ -486,8 +755,6 @@ textarea {
   100% { box-shadow: inset 0 0 0 1px rgba(245, 161, 161, 0); }
 }
 
-/* While correcting, slow the leverage slider thumb/fill so the glide is
-   readable rather than the default 0.1s snap. */
 [data-correcting='true'] .leverage-fill,
 [data-correcting='true'] .leverage-thumb {
   transition: width 400ms var(--correction-ease), left 400ms var(--correction-ease) !important;
