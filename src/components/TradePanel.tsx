@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
 import { useMarketOdds } from '../hooks/useMarketOdds'
+import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
   useApproveUsdc,
@@ -11,10 +12,13 @@ import {
   useCreatePosition,
   USDC_ADDRESS,
 } from '../contract/hooks'
+import { ApiError } from '../api/client'
+import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
 import { LeverageSlider } from './LeverageSlider'
 import { QuoteDetails } from './QuoteDetails'
+import { QuoteErrorHint } from './QuoteErrorHint'
 import { Button } from './ui/Button'
 import { Field } from './ui/Field'
 import { Input } from './ui/Input'
@@ -22,12 +26,13 @@ import { Input } from './ui/Input'
 const PRESET_AMOUNTS = [50, 100, 500] as const
 const DEFAULT_SLIPPAGE_BPS = 800 // 8%
 const DEFAULT_LEVERAGE_BPS = 20000 // 2x
+const SLIPPAGE_PRESETS_BPS = [200, 500, 800] as const
 const FORCED_LEVERAGE_STEP_BPS = 5000 // 0.5x
 
-function clampLeverageToMarket(target: number, market: { leverage: { minBps: number; maxBps: number; stepBps: number } }) {
+function clampLeverageToMarket(target: number, market: { leverage: { minBps: number; maxYesBps: number; maxNoBps: number; stepBps: number } }, side: 'yes' | 'no' = 'yes') {
   const step = Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)
   const minBps = market.leverage.minBps
-  const maxBps = market.leverage.maxBps
+  const maxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
   const maxSteps = Math.max(0, Math.floor((maxBps - minBps) / step))
   const clamped = Math.min(Math.max(target, minBps), minBps + maxSteps * step)
   const k = Math.round((clamped - minBps) / step)
@@ -44,16 +49,18 @@ export function TradePanel({
   const [side, setSide] = useState<'yes' | 'no'>('yes')
   const [collateralUsd, setCollateralUsd] = useState('')
   const [leverageBps, setLeverageBps] = useState(() =>
-    clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market),
+    clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market, side),
   )
   const [showTicker, setShowTicker] = useState(false)
 
-  useEffect(() => {
-    setLeverageBps(clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market))
-    setShowTicker(false)
-  }, [market.ticker, market.leverage.minBps, market.leverage.maxBps, market.leverage.stepBps])
+  const sideMaxBps = side === 'yes' ? market.leverage.maxYesBps : market.leverage.maxNoBps
 
-  const slippageBps = DEFAULT_SLIPPAGE_BPS
+  useEffect(() => {
+    setLeverageBps(clampLeverageToMarket(DEFAULT_LEVERAGE_BPS, market, side))
+    setShowTicker(false)
+  }, [market.ticker, market.leverage.minBps, market.leverage.maxYesBps, market.leverage.maxNoBps, market.leverage.stepBps, side])
+  const [slippageBps, setSlippageBps] = useState(DEFAULT_SLIPPAGE_BPS)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const queryClient = useQueryClient()
   const addPendingStub = usePendingPositionsStore((s) => s.add)
@@ -72,6 +79,9 @@ export function TradePanel({
     isConfirming: approveConfirming,
     isSuccess: approveSuccess,
     simulateError: approveSimError,
+    error: approveWriteError,
+    receiptError: approveReceiptError,
+    reset: resetApprove,
   } = useApproveUsdc()
   const {
     create,
@@ -79,6 +89,7 @@ export function TradePanel({
     isConfirming: createConfirming,
     isSuccess: createSuccess,
     isReceiptError: createReceiptError,
+    receiptError: createReceiptErrorObj,
     error: createWriteError,
     verifyError,
     reset: resetCreate,
@@ -148,11 +159,100 @@ export function TradePanel({
     })
   }
 
+  const offerHint = quoteErrorHint(
+    offerError instanceof ApiError ? offerError.code : null,
+    offerError instanceof ApiError ? offerError.params : null,
+    { leverageBps },
+  )
+
+  const adjustment = hintAdjustment(offerHint, {
+    collateralUsd: Number(collateralUsd) || 0,
+    leverageBps,
+    slippageBps,
+  })
+
+  // Auto-correct inputs the moment a quote error returns a constraint hint.
+  // The user still presses Get Quote again to retry — we never silently
+  // re-fire the API call.
+  const [correction, setCorrection] = useState<{
+    field: CorrectedField
+    fromValue: number
+    toValue: number
+    nonce: number
+  } | null>(null)
+  const [errorPulseNonce, setErrorPulseNonce] = useState(0)
+  const lastHandledErrorRef = useRef<unknown>(null)
+  const correctionNonceRef = useRef(0)
+  const adjustmentRef = useRef(adjustment)
+  adjustmentRef.current = adjustment
+
+  useEffect(() => {
+    if (!offerError) {
+      lastHandledErrorRef.current = null
+      return
+    }
+    if (offerError === lastHandledErrorRef.current) return
+    lastHandledErrorRef.current = offerError
+
+    setErrorPulseNonce((n) => n + 1)
+
+    const adj = adjustmentRef.current
+    if (!adj) return
+    if (Math.abs(adj.toValue - adj.fromValue) < 1e-4) return
+
+    if (adj.field === 'collateral') {
+      setCollateralUsd(adj.toValue.toFixed(2))
+    } else if (adj.field === 'leverage') {
+      setLeverageBps(adj.toValue)
+    } else if (adj.field === 'slippage') {
+      setSlippageBps(adj.toValue)
+      setAdvancedOpen(true)
+    }
+    correctionNonceRef.current += 1
+    setCorrection({
+      field: adj.field,
+      fromValue: adj.fromValue,
+      toValue: adj.toValue,
+      nonce: correctionNonceRef.current,
+    })
+  }, [offerError])
+
+  // Tween display values for whichever field is mid-correction. When the
+  // tween isn't active for a given field, we fall back to the live state.
+  const collateralTween = useValueTween(
+    correction?.field === 'collateral' ? correction.fromValue : 0,
+    correction?.field === 'collateral' ? correction.toValue : 0,
+    correction?.field === 'collateral' ? correction.nonce : 0,
+  )
+  const leverageTween = useValueTween(
+    correction?.field === 'leverage' ? correction.fromValue : 0,
+    correction?.field === 'leverage' ? correction.toValue : 0,
+    correction?.field === 'leverage' ? correction.nonce : 0,
+  )
+  const slippageTween = useValueTween(
+    correction?.field === 'slippage' ? correction.fromValue : 0,
+    correction?.field === 'slippage' ? correction.toValue : 0,
+    correction?.field === 'slippage' ? correction.nonce : 0,
+  )
+
+  const displayCollateral =
+    correction?.field === 'collateral' && collateralTween.active
+      ? collateralTween.value.toFixed(2)
+      : collateralUsd
+  const displayLeverageBps =
+    correction?.field === 'leverage' && leverageTween.active
+      ? leverageTween.value
+      : leverageBps
+  const displaySlippagePct =
+    correction?.field === 'slippage' && slippageTween.active
+      ? (slippageTween.value / 100).toFixed(2).replace(/\.?0+$/, '')
+      : (slippageBps / 100).toString()
+
   const handleApprove = async () => {
     if (!offer) return
     await approve(
       offer.polygonVaultContractAddress,
-      BigInt(offer.totalUserAmountUsdcUnits),
+      2n ** 256n - 1n,
     )
     refetchAllowance()
   }
@@ -188,8 +288,17 @@ export function TradePanel({
 
   return (
     <CardShell variant="yellow" className="trade-panel-card-shell">
-      <div className="trade-panel" style={{ padding: '24px 24px 20px' }}>
-        {/* Header — title (click to toggle ticker) */}
+      <div
+        className="trade-panel"
+        style={{ padding: '24px 24px 20px', position: 'relative' }}
+      >
+        {errorPulseNonce > 0 && (
+          <span
+            key={`fail-${errorPulseNonce}`}
+            className="panel-fail-ring"
+            aria-hidden
+          />
+        )}
         <div
           style={{
             display: 'flex',
@@ -267,14 +376,23 @@ export function TradePanel({
         {/* Collateral */}
         <div style={{ marginBottom: 18 }}>
           <Field label="Collateral">
-            <Input
-              type="number"
-              inputMode="decimal"
-              value={collateralUsd}
-              onChange={(e) => updateCollateral(e.target.value)}
-              placeholder="0.00"
-              leadingSlot="$"
-            />
+            <div className="correction-host">
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={displayCollateral}
+                onChange={(e) => updateCollateral(e.target.value)}
+                placeholder="0.00"
+                leadingSlot="$"
+              />
+              {correction?.field === 'collateral' && (
+                <span
+                  key={`corr-coll-${correction.nonce}`}
+                  className="correction-overlay"
+                  aria-hidden
+                />
+              )}
+            </div>
           </Field>
           <div className="quick-btn-row">
             {PRESET_AMOUNTS.map((amount) => (
@@ -299,18 +417,95 @@ export function TradePanel({
         </div>
 
         {/* Leverage card */}
-        <div className="lev-wrap">
+        <div
+          className="lev-wrap correction-host"
+          data-correcting={correction?.field === 'leverage' && leverageTween.active ? 'true' : 'false'}
+        >
           <LeverageSlider
             min={market.leverage.minBps}
-            max={market.leverage.maxBps}
+            max={sideMaxBps}
             step={Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)}
-            value={leverageBps}
+            value={displayLeverageBps}
             onChange={(v) => { setLeverageBps(v); clearOffer(); }}
           />
+          {correction?.field === 'leverage' && (
+            <span
+              key={`corr-lev-${correction.nonce}`}
+              className="correction-overlay"
+              aria-hidden
+            />
+          )}
+        </div>
+
+        {/* Advanced */}
+        <div className="adv">
+          <div className="adv__toggle-row">
+            <button
+              type="button"
+              className="adv__toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((o) => !o)}
+            >
+              <span className="adv__caret" aria-hidden />
+              Advanced
+            </button>
+            <span className="adv__rule" aria-hidden />
+          </div>
+          <div className={`adv__panel${advancedOpen ? ' adv__panel--open' : ''}`}>
+            <div className="adv__panel-inner">
+              <div className="adv__panel-content">
+                <div className="adv__row">
+                  <span className="adv__label">Slippage</span>
+                  <label className="adv__custom correction-host">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      min="0"
+                      value={displaySlippagePct}
+                      onChange={(e) => {
+                        const pct = Number(e.target.value)
+                        if (Number.isNaN(pct)) return
+                        setSlippageBps(Math.max(0, Math.round(pct * 100)))
+                        clearOffer()
+                      }}
+                      placeholder="2.0"
+                      aria-label="Custom slippage percent"
+                    />
+                    <span className="adv__custom-suffix">%</span>
+                    {correction?.field === 'slippage' && (
+                      <span
+                        key={`corr-slip-${correction.nonce}`}
+                        className="correction-overlay"
+                        aria-hidden
+                      />
+                    )}
+                  </label>
+                  <div className="adv__chips" role="radiogroup" aria-label="Slippage presets">
+                    {SLIPPAGE_PRESETS_BPS.map((bps) => {
+                      const active = slippageBps === bps
+                      return (
+                        <button
+                          key={bps}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          className={`adv__chip${active ? ' adv__chip--active' : ''}`}
+                          onClick={() => { setSlippageBps(bps); clearOffer(); }}
+                        >
+                          {bps / 100}%
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Get quote */}
-        <div style={{ marginTop: 18 }}>
+        <div style={{ marginTop: 18, position: 'relative' }}>
           <Button
             variant="primary"
             fullWidth
@@ -323,16 +518,24 @@ export function TradePanel({
                 ? 'Get quote'
                 : 'Connect wallet to trade'}
           </Button>
+          {correction && (
+            <span
+              key={`cta-${correction.nonce}`}
+              className="cta-breath"
+              aria-hidden
+            />
+          )}
         </div>
 
         <ErrorBanner error={offerError} onDismiss={clearOffer} />
+        <QuoteErrorHint hint={offerHint} adjustment={adjustment} />
         <ErrorBanner
-          error={verifyError ? new Error(verifyError) : null}
+          error={verifyError ?? createWriteError ?? createReceiptErrorObj}
           onDismiss={resetCreate}
         />
         <ErrorBanner
-          error={approveSimError ? new Error(approveSimError) : null}
-          onDismiss={() => {}}
+          error={approveSimError ?? approveWriteError ?? approveReceiptError}
+          onDismiss={resetApprove}
         />
 
         {offerLoading && !offer && <QuoteSkeleton />}

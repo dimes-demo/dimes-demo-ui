@@ -120,6 +120,7 @@ export function LeverageSlider({
 
         {/* Filled track */}
         <div
+          className="leverage-fill"
           style={{
             position: 'absolute',
             top: '50%',
@@ -158,6 +159,7 @@ export function LeverageSlider({
 
         {/* Thumb */}
         <div
+          className="leverage-thumb"
           style={{
             position: 'absolute',
             top: '50%',

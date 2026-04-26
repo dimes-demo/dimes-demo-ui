@@ -25,18 +25,31 @@ export class ApiError extends Error {
   public readonly status: number;
   public readonly code: string | null;
   public readonly type: string | null;
+  public readonly params: Record<string, unknown> | null;
 
-  constructor(status: number, code: string | null, type: string | null, message: string) {
+  constructor(
+    status: number,
+    code: string | null,
+    type: string | null,
+    message: string,
+    params: Record<string, unknown> | null = null,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.type = type;
+    this.params = params;
   }
 }
 
 interface ApiErrorBody {
-  error?: { type?: string; code?: string; message?: string };
+  error?: {
+    type?: string;
+    code?: string;
+    message?: string;
+    params?: Record<string, unknown>;
+  };
 }
 
 async function throwFromResponse(response: Response): Promise<never> {
@@ -51,7 +64,12 @@ async function throwFromResponse(response: Response): Promise<never> {
   const type = parsed?.error?.type ?? null;
   const message =
     parsed?.error?.message ?? code ?? rawBody ?? `API error ${response.status}`;
-  throw new ApiError(response.status, code, type, message);
+  const rawParams = parsed?.error?.params;
+  const params =
+    rawParams && typeof rawParams === 'object'
+      ? camelizeKeys<Record<string, unknown>>(rawParams)
+      : null;
+  throw new ApiError(response.status, code, type, message, params);
 }
 
 function getAuthHeaders(): Record<string, string> {

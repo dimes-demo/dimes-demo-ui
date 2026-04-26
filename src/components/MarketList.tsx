@@ -140,8 +140,8 @@ export function MarketList({
           bv = b.acceptingNewPositions ? 1 : 0
           break
         case 'leverage':
-          av = a.leverage.maxBps
-          bv = b.leverage.maxBps
+          av = Math.max(a.leverage.maxYesBps, a.leverage.maxNoBps)
+          bv = Math.max(b.leverage.maxYesBps, b.leverage.maxNoBps)
           break
       }
       if (av < bv) return -1 * dir
@@ -421,7 +421,7 @@ function MarketRow({
 }) {
   const [hovered, setHovered] = useState(false)
   const prefetchOdds = usePrefetchMarketOdds()
-  const maxLeverage = (market.leverage.maxBps / 10000).toFixed(0)
+  const maxLeverage = (Math.max(market.leverage.maxYesBps, market.leverage.maxNoBps) / 10000).toFixed(0)
 
   const tdStyle: React.CSSProperties = {
     padding: '12px 14px',
@@ -431,6 +431,13 @@ function MarketRow({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
+    transition: 'background 0.18s ease, box-shadow 0.18s ease',
+  }
+
+  const firstTdStyle: React.CSSProperties = {
+    ...tdStyle,
+    maxWidth: 200,
+    boxShadow: isSelected ? 'inset 3px 0 0 var(--yellow)' : 'none',
   }
 
   const rowBg = isSelected
@@ -460,15 +467,16 @@ function MarketRow({
         outline: isSelected ? '1px solid rgba(238,255,0,0.3)' : 'none',
       }}
     >
-      <td
-        style={{
-          ...tdStyle,
-          color: '#ffffff',
-          fontWeight: 500,
-        }}
-        title={market.title || market.ticker}
-      >
-        {market.title || '—'}
+      <td style={firstTdStyle}>
+        <span
+          style={{
+            color: '#ffffff',
+            fontWeight: 500,
+          }}
+          title={market.title || market.ticker}
+        >
+          {market.title || '—'}
+        </span>
       </td>
       <td style={{ ...tdStyle, textAlign: 'center' }}>
         {market.category && (
@@ -537,7 +545,9 @@ function MarketRow({
               cursor: 'help',
             }}
           >
-            NO
+            {market.rejectionReasonCode
+              ? market.rejectionReasonCode.replace(/^QUOTE_/, '').replaceAll('_', ' ')
+              : 'NO'}
           </span>
         )}
       </td>

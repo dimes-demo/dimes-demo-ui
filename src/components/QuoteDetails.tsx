@@ -73,12 +73,8 @@ export function QuoteDetails({ offer, hideExpiry = false }: { offer: Offer; hide
         </>
       )}
       <StatRow
-        label="Trading Fee"
-        value={
-          offer.polymarketTradingFeeBps > 0
-            ? `${(offer.polymarketTradingFeeBps / 100).toFixed(2)}% ($${offer.expectedOpenTradingFeeUsd})`
-            : `$${offer.expectedOpenTradingFeeUsd}`
-        }
+        label={offer.provider === 'kalshi' ? 'Kalshi Fee' : 'Polymarket Fee'}
+        value={`$${offer.expectedOpenTradingFeeUsd}`}
       />
       <StatRow label="Time-based fee" value="0.01%" />
 

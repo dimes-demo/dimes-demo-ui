@@ -29,6 +29,18 @@ export function bpsToMultiplier(bps: number): string {
   return `${(bps / 10_000).toFixed(1).replace(/\.0$/, '')}x`;
 }
 
+/**
+ * Format signed execution slippage in bps as a percentage string.
+ * Returns null when bps is null so callers can render a "pending" state
+ * rather than a misleading "0.00%".
+ */
+export function formatSlippageBps(bps: number | null): string | null {
+  if (bps === null) return null;
+  const pct = bps / 100;
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(2)}%`;
+}
+
 /** Format a number as a USD string */
 export function formatUsd(value: number): string {
   return new Intl.NumberFormat('en-US', {

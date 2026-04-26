@@ -520,11 +520,6 @@ textarea {
   flex-direction: column;
 }
 
-/* Empty state: panel-fill stretches to match the markets table height.
-   With a quote shown, the trade panel content is taller than the table —
-   the panel column then grows past the table and (because of grid stretch)
-   the list column gets equal height with empty space below the pagination,
-   which is acceptable. */
 .markets-layout__panel-fill {
   flex: 1 1 auto;
   display: flex;
@@ -610,8 +605,6 @@ textarea {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  /* Tells the browser to render the native option-list popup in dark mode,
-     fixing the white flash on click in Chrome / Edge. */
   color-scheme: dark;
   padding-right: 30px;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
@@ -685,6 +678,86 @@ textarea {
 
 .dimes-scroll::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Auto-correction feedback (see TradePanel.tsx).
+   -------------------------------------------------------------------------- */
+
+:root {
+  --correction-amber: #F5C451;
+  --correction-ease: cubic-bezier(0.32, 0.72, 0.24, 1);
+}
+
+.correction-host {
+  position: relative;
+}
+
+.correction-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 4;
+  animation: correctionGlow 560ms var(--correction-ease) 160ms both;
+}
+
+.correction-overlay::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 0;
+  background: var(--correction-amber);
+  border-radius: 1px;
+  animation: correctionRailSweep 640ms var(--correction-ease) 120ms both;
+}
+
+@keyframes correctionGlow {
+  0% { box-shadow: 0 0 0 0 rgba(245, 196, 81, 0); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 196, 81, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 196, 81, 0); }
+}
+
+@keyframes correctionRailSweep {
+  0% { width: 0; opacity: 0.92; }
+  75% { width: 100%; opacity: 0.92; }
+  100% { width: 100%; opacity: 0; }
+}
+
+.cta-breath {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+  animation: ctaBreath 560ms var(--correction-ease) 200ms both;
+}
+
+@keyframes ctaBreath {
+  0% { box-shadow: 0 0 0 0 rgba(245, 196, 81, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 196, 81, 0.22); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 196, 81, 0); }
+}
+
+.panel-fail-ring {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 1;
+  animation: panelFailRing 220ms var(--correction-ease) both;
+}
+
+@keyframes panelFailRing {
+  0% { box-shadow: inset 0 0 0 1px rgba(245, 161, 161, 0.45); }
+  100% { box-shadow: inset 0 0 0 1px rgba(245, 161, 161, 0); }
+}
+
+[data-correcting='true'] .leverage-fill,
+[data-correcting='true'] .leverage-thumb {
+  transition: width 400ms var(--correction-ease), left 400ms var(--correction-ease) !important;
 }
 
 /* ---------------------------------------------------------------------------
