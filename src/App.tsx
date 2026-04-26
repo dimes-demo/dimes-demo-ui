@@ -74,18 +74,16 @@ function App() {
                   </div>
                 </div>
                 <div className="markets-layout__panel-fill">
-                  <div className="markets-layout__panel-scroll dimes-scroll">
-                    {selectedMarket ? (
-                      <TradePanel
-                        market={selectedMarket}
-                        onClose={() => setSelectedMarket(null)}
-                      />
-                    ) : (
-                      <div className="trade-panel-empty">
-                        Select a market to start
-                      </div>
-                    )}
-                  </div>
+                  {selectedMarket ? (
+                    <TradePanel
+                      market={selectedMarket}
+                      onClose={() => setSelectedMarket(null)}
+                    />
+                  ) : (
+                    <div className="trade-panel-empty">
+                      Select a market to start
+                    </div>
+                  )}
                 </div>
                 {/* Mirrors the markets-list pagination row so the panel's
                     bottom edge lines up with the LAST market row, not the
