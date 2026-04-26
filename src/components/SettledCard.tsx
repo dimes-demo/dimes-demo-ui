@@ -68,9 +68,6 @@ export function SettledCard({
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
   }
 
-  const truncateMiddle = (value: string, head = 8, tail = 6) =>
-    value.length <= head + tail + 1 ? value : `${value.slice(0, head)}…${value.slice(-tail)}`
-
   const realizedPnl = parseFloat(position.result.realizedPnlUsd)
   const pnlColor = realizedPnl >= 0 ? 'var(--green)' : 'var(--red)'
   const pnlPrefix = realizedPnl >= 0 ? '+' : ''
@@ -126,39 +123,6 @@ export function SettledCard({
             >
               {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
             </div>
-            <span
-              onClick={() => copyToClipboard(position.id, 'id')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'id' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'id' ? 'Copied!' : position.id}
-            >
-              {copiedKey === 'id' ? '✓ Copied to clipboard' : truncateMiddle(position.id)}
-            </span>
-            <span
-              onClick={() => copyToClipboard(position.onChainPositionKey, 'key')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'key' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'key' ? 'Copied!' : position.onChainPositionKey}
-            >
-              {copiedKey === 'key' ? '✓ Copied to clipboard' : truncateMiddle(position.onChainPositionKey)}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span

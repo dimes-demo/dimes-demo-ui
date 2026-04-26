@@ -97,8 +97,8 @@ export function LeverageChart({
     return (
       <div
         style={{
-          background: 'rgba(238,255,0,0.04)',
-          border: '1px solid rgba(238,255,0,0.1)',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 0,
           padding: '12px 14px',
         }}
@@ -107,7 +107,7 @@ export function LeverageChart({
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: 'var(--yellow)',
+            color: 'var(--text)',
             marginBottom: 10,
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
@@ -202,8 +202,8 @@ export function LeverageChart({
     <>
       <div
         style={{
-          background: 'rgba(238,255,0,0.04)',
-          border: '1px solid rgba(238,255,0,0.1)',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 0,
           padding: '12px 14px',
         }}
@@ -220,7 +220,7 @@ export function LeverageChart({
             style={{
               fontSize: 11,
               fontWeight: 600,
-              color: 'var(--yellow)',
+              color: 'var(--text)',
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
             }}
@@ -241,8 +241,8 @@ export function LeverageChart({
           >
             <defs>
               <linearGradient id="leverageAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#EEFF00" stopOpacity="0.14" />
-                <stop offset="100%" stopColor="#EEFF00" stopOpacity="0" />
+                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.14" />
+                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
               </linearGradient>
             </defs>
 
@@ -280,7 +280,7 @@ export function LeverageChart({
             <path
               d={linePath}
               fill="none"
-              stroke="#EEFF00"
+              stroke="#ffffff"
               strokeWidth={1.5}
               strokeLinejoin="miter"
             />
@@ -294,7 +294,7 @@ export function LeverageChart({
                   cx={toX(p.date)}
                   cy={toY(p.leverageBps)}
                   r={3}
-                  fill="#EEFF00"
+                  fill="#ffffff"
                   stroke="rgba(12,12,12,0.8)"
                   strokeWidth={1}
                 />
@@ -305,7 +305,7 @@ export function LeverageChart({
               cx={toX(points[0].date)}
               cy={toY(points[0].leverageBps)}
               r={2.5}
-              fill="rgba(238,255,0,0.45)"
+              fill="rgba(255,255,255,0.45)"
             />
 
             {/* X-axis labels */}
@@ -339,7 +339,7 @@ export function LeverageChart({
                     y1={PAD_TOP}
                     x2={hx}
                     y2={PAD_TOP + chartH}
-                    stroke="rgba(238,255,0,0.2)"
+                    stroke="rgba(255,255,255,0.2)"
                     strokeWidth={1}
                     strokeDasharray="3 3"
                     pointerEvents="none"
@@ -348,7 +348,7 @@ export function LeverageChart({
                     cx={hx}
                     cy={hy}
                     r={4}
-                    fill="#EEFF00"
+                    fill="#ffffff"
                     stroke="rgba(12,12,12,0.9)"
                     strokeWidth={1.5}
                     pointerEvents="none"
@@ -380,7 +380,7 @@ export function LeverageChart({
             left: tooltip.clientX + 12,
             top: tooltip.clientY - 40,
             background: 'rgba(20,20,20,0.96)',
-            border: '1px solid rgba(238,255,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.2)',
             borderRadius: 0,
             padding: '5px 9px',
             pointerEvents: 'none',
@@ -392,7 +392,7 @@ export function LeverageChart({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: '#EEFF00',
+              color: '#ffffff',
               fontFamily: 'var(--font)',
             }}
           >

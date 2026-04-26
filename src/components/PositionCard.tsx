@@ -50,9 +50,6 @@ export function PositionCard({
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
   }
 
-  const truncateMiddle = (value: string, head = 8, tail = 6) =>
-    value.length <= head + tail + 1 ? value : `${value.slice(0, head)}…${value.slice(-tail)}`
-
   const isPendingPosition = position.status === 'pending'
   const isOpenPosition = position.status === 'open'
   const isClosingPosition = position.status === 'closing'
@@ -235,39 +232,6 @@ export function PositionCard({
             >
               {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
             </div>
-            <span
-              onClick={() => copyToClipboard(position.id, 'id')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'id' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'id' ? 'Copied!' : position.id}
-            >
-              {copiedKey === 'id' ? '✓ Copied to clipboard' : truncateMiddle(position.id)}
-            </span>
-            <span
-              onClick={() => copyToClipboard(position.onChainPositionKey, 'key')}
-              style={{
-                display: 'block',
-                fontSize: 10,
-                fontWeight: 500,
-                color: copiedKey === 'key' ? 'var(--green)' : 'var(--text-dim)',
-                fontFamily: 'monospace',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                marginTop: 2,
-                transition: 'color 0.2s',
-              }}
-              title={copiedKey === 'key' ? 'Copied!' : position.onChainPositionKey}
-            >
-              {copiedKey === 'key' ? '✓ Copied to clipboard' : truncateMiddle(position.onChainPositionKey)}
-            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span
@@ -322,7 +286,7 @@ export function PositionCard({
         />
 
         {viewMode === 'simple' ? (
-          <div style={{ animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
             <div
               style={{
                 display: 'grid',
@@ -347,13 +311,31 @@ export function PositionCard({
                 label="Distance to liquidation"
                 value={distancePctDisplay}
               />
+              <MicroStat
+                label="Current price"
+                value={`$${position.current.markPriceUsd}`}
+              />
+              <MicroStat
+                label="Liquidation price"
+                value={`$${position.risk.currentLiquidationPriceUsd}`}
+                valueColor="#F5A623"
+              />
+              <MicroStat label="Time to resolution" value={timeDisplay} />
+              <MicroStat
+                label="Weighted leverage"
+                value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
+              />
             </div>
           </div>
         ) : (
-          <div style={{ animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
             <StatGroup label="Pricing">
               <StatRow label="Entry Price" value={`$${position.entry.priceUsd}`} />
               <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
+              <StatRow
+                label="Exit Price"
+                value={`$${position.current.markPriceUsd}`}
+              />
               <StatRow
                 label="Liquidation Price"
                 value={`$${position.risk.currentLiquidationPriceUsd}`}
@@ -374,6 +356,10 @@ export function PositionCard({
                 label="Current Notional"
                 value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
               />
+              <StatRow
+                label="Margin Buffer"
+                value={`$${parseFloat(position.risk.marginBufferUsd).toFixed(2)}`}
+              />
             </StatGroup>
 
             <StatGroup label="PnL & Fees">
@@ -388,11 +374,20 @@ export function PositionCard({
                 valueColor={netPnlColor}
               />
               <StatRow
-                label="Accrued Fees"
+                label="Origination Fee"
+                value={`$${parseFloat(position.entry.originationFeeUsd).toFixed(2)} (${(position.entry.originationFeeBps / 100).toFixed(2)}%)`}
+              />
+              <StatRow
+                label="Time-based fees accrued"
                 value={`$${accruedFees.toFixed(2)}`}
                 valueColor="var(--text-muted)"
               />
-              <StatRow label="Time-based fee" value="0.01%" />
+              <StatRow label="Time-based fee rate" value="0.01% APR" />
+              <StatRow
+                label="Total fees paid"
+                value={`$${(parseFloat(position.entry.originationFeeUsd) + accruedFees).toFixed(2)}`}
+                valueColor="var(--text)"
+              />
             </StatGroup>
 
             <StatGroup label="Leverage">

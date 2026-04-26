@@ -87,6 +87,19 @@ function App() {
                     )}
                   </div>
                 </div>
+                {/* Mirrors the markets-list pagination row so the panel's
+                    bottom edge lines up with the LAST market row, not the
+                    Prev/Next buttons. */}
+                <div
+                  aria-hidden
+                  style={{
+                    visibility: 'hidden',
+                    pointerEvents: 'none',
+                    marginTop: 12,
+                    padding: '0 4px',
+                    height: 28,
+                  }}
+                />
               </div>
             </div>
 
