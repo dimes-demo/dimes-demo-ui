@@ -230,7 +230,8 @@ function OpenPositionDetail({
   const isPendingPosition = position.status === 'pending'
   const isOpenPos = position.status === 'open'
   const isUnwindingPos = position.status === 'unwinding'
-  const canAct = (isPendingPosition || isOpenPos) && !isUnwindingPos && !isDemoMode
+  const isVoided = position.timing.isVoided && position.timing.isSettlementPending
+  const canAct = (isPendingPosition || isOpenPos) && !isUnwindingPos && !isVoided && !isDemoMode
 
   const isBusy = cancelMutation.isPending || isCloseSigning || isCloseConfirming
   const actionError: unknown = isPendingPosition
@@ -312,7 +313,7 @@ function OpenPositionDetail({
   }
 
   const isInFlight = position.status === 'pending' || position.status === 'closing' || position.status === 'settling' || isUnwindingPos
-  const statusLabel = position.status === 'pending' ? 'created' : position.status
+  const statusLabel = isVoided ? 'voided' : position.status === 'pending' ? 'created' : position.status
 
   return (
     <div>
@@ -332,19 +333,22 @@ function OpenPositionDetail({
             <Badge
               label={statusLabel}
               color={
-                position.status === 'open' ? 'var(--green)'
+                isVoided ? '#A78BFA'
+                  : position.status === 'open' ? 'var(--green)'
                   : isUnwindingPos ? '#5B9CF5'
                   : isInFlight ? '#F5A623'
                   : 'var(--text-muted)'
               }
               bg={
-                position.status === 'open' ? 'var(--green-soft)'
+                isVoided ? 'rgba(167,139,250,0.08)'
+                  : position.status === 'open' ? 'var(--green-soft)'
                   : isUnwindingPos ? 'rgba(91,156,245,0.08)'
                   : isInFlight ? 'rgba(245,166,35,0.08)'
                   : 'rgba(136,136,136,0.08)'
               }
               borderColor={
-                position.status === 'open' ? 'rgba(68,255,151,0.2)'
+                isVoided ? 'rgba(167,139,250,0.2)'
+                  : position.status === 'open' ? 'rgba(68,255,151,0.2)'
                   : isUnwindingPos ? 'rgba(91,156,245,0.2)'
                   : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
@@ -355,7 +359,30 @@ function OpenPositionDetail({
       />
 
       <div style={{ padding: '0 24px 24px' }}>
-        {isUnwindingPos && (
+        {isVoided && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(167,139,250,0.06)',
+              border: '1px solid rgba(167,139,250,0.18)',
+              borderRadius: 0,
+              padding: '10px 12px',
+              marginBottom: 14,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+            <span style={{ fontSize: 12, color: '#A78BFA', lineHeight: 1.4 }}>
+              Market voided — all tokens settling at $0.50
+            </span>
+          </div>
+        )}
+
+        {isUnwindingPos && !isVoided && (
           <div
             style={{
               display: 'flex',
@@ -403,9 +430,15 @@ function OpenPositionDetail({
             value={filledPrice ? `$${filledPrice}` : 'Pending fill'}
             valueColor={filledPrice ? undefined : 'var(--text-muted)'}
           />
-          <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
-          <StatRow label="Exit Price" value={`$${position.current.markPriceUsd}`} />
-          {!isFullyDeleveraged && (
+          <StatRow
+            label={isVoided ? 'Settlement Price' : 'Current Price'}
+            value={`$${position.current.markPriceUsd}`}
+            valueColor={isVoided ? '#A78BFA' : undefined}
+          />
+          {!isVoided && (
+            <StatRow label="Exit Price" value={`$${position.current.markPriceUsd}`} />
+          )}
+          {!isFullyDeleveraged && !isVoided && (
             <>
               <StatRow
                 label="Liquidation Price"
@@ -486,8 +519,17 @@ function OpenPositionDetail({
         </StatGroup>
 
         <StatGroup label="Timing" last>
-          <StatRow label="Time to Resolution" value={timeDisplay} />
-          <StatRow label="Market Status" value={position.timing.marketStatus} />
+          {!isVoided && (
+            <StatRow label="Time to Resolution" value={timeDisplay} />
+          )}
+          <StatRow label="Market Status" value={isVoided ? 'Voided' : position.timing.marketStatus} />
+          {position.timing.isSettlementPending && (
+            <StatRow
+              label="Settlement"
+              value="Pending"
+              valueColor={isVoided ? '#A78BFA' : '#F5A623'}
+            />
+          )}
         </StatGroup>
 
         {canAct && (

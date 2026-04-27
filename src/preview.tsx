@@ -163,6 +163,8 @@ const mockOpenPosition: OpenPosition = {
     marketCloseTime: '2026-06-30T00:00:00Z',
     marketStatus: 'active',
     timeToCloseMinutes: 138240,
+    isVoided: false,
+    isSettlementPending: false,
   },
 }
 
@@ -177,6 +179,28 @@ const mockUnwindingPosition: OpenPosition = {
     unrealizedPnlBps: -420,
     positionValueUsd: '7.90',
     positionValueUsdPips: '79000',
+  },
+}
+
+const mockVoidedPosition: OpenPosition = {
+  ...mockOpenPosition,
+  id: 'dm_pos_voided',
+  status: 'settling',
+  current: {
+    ...mockOpenPosition.current,
+    markPriceUsd: '0.50',
+    markPriceUsdPips: '5000',
+    unrealizedPnlUsd: '-1.80',
+    unrealizedPnlBps: -360,
+    positionValueUsd: '8.20',
+    positionValueUsdPips: '82000',
+  },
+  timing: {
+    ...mockOpenPosition.timing,
+    marketStatus: 'closed',
+    timeToCloseMinutes: null,
+    isVoided: true,
+    isSettlementPending: true,
   },
 }
 
@@ -276,6 +300,12 @@ export default function Preview() {
         <h2 style={{ fontSize: 14, fontWeight: 600, color: '#e8e8e8', marginBottom: 12 }}>Unwinding Position</h2>
         <div style={{ maxWidth: 480, marginBottom: 40 }}>
           <PositionCard position={mockUnwindingPosition} />
+        </div>
+
+        {/* Voided Position */}
+        <h2 style={{ fontSize: 14, fontWeight: 600, color: '#e8e8e8', marginBottom: 12 }}>Voided Position</h2>
+        <div style={{ maxWidth: 480, marginBottom: 40 }}>
+          <PositionCard position={mockVoidedPosition} />
         </div>
 
         {/* Settled Position */}

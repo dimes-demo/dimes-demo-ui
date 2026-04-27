@@ -165,6 +165,8 @@ export interface PositionTiming {
   marketCloseTime: string | null;
   marketStatus: string;
   timeToCloseMinutes: number | null;
+  isVoided: boolean;
+  isSettlementPending: boolean;
 }
 
 export interface PositionResult {

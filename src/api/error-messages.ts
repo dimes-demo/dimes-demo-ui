@@ -258,6 +258,7 @@ const friendlyByCode: Record<string, FriendlyEntry> = {
     if (max) return `Required slippage exceeds your tolerance (${max}). Reduce size or raise tolerance.`;
     return 'Price would move too far to fill this order. Reduce size or raise your slippage tolerance.';
   },
+  quote_event_not_started: 'This event has not started yet. Trading opens at the scheduled start time.',
   quote_entry_bid_depth_too_low: 'Order book depth on the entry side is too thin to open this position safely.',
   quote_entry_capacity_exceeded: 'Entry size exceeds the market’s available capacity.',
   quote_entry_depth_too_low: 'Order book depth is too thin to open this position safely.',

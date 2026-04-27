@@ -27,6 +27,7 @@ export function PositionCard({
   const isSettlingPosition = position.status === 'settling'
   const isPendingPosition = position.status === 'pending'
   const isUnwindingPosition = position.status === 'unwinding'
+  const isVoided = position.timing.isVoided && position.timing.isSettlementPending
   const isInFlight = isPendingPosition || isClosingPosition || isSettlingPosition || isUnwindingPosition
 
   const isYes = position.side === 'yes'
@@ -78,7 +79,30 @@ export function PositionCard({
       style={isSelected ? { border: '1px solid var(--yellow-border)' } : undefined}
     >
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
-        {isInFlight && (
+        {isVoided && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              background: 'rgba(167,139,250,0.06)',
+              border: '1px solid rgba(167,139,250,0.18)',
+              borderRadius: 0,
+              padding: '10px 12px',
+              marginBottom: 16,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+            <span style={{ fontSize: 12, color: '#A78BFA', lineHeight: 1.4 }}>
+              Market voided — settling at $0.50
+            </span>
+          </div>
+        )}
+
+        {isInFlight && !isVoided && (
           <div
             style={{
               display: 'flex',
@@ -223,16 +247,19 @@ export function PositionCard({
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: position.status === 'open' ? 'var(--green)'
+                color: isVoided ? '#A78BFA'
+                  : position.status === 'open' ? 'var(--green)'
                   : isUnwindingPosition ? '#5B9CF5'
                   : isInFlight ? '#F5A623'
                   : 'var(--text-muted)',
-                background: position.status === 'open' ? 'var(--green-soft)'
+                background: isVoided ? 'rgba(167,139,250,0.08)'
+                  : position.status === 'open' ? 'var(--green-soft)'
                   : isUnwindingPosition ? 'rgba(91,156,245,0.08)'
                   : isInFlight ? 'rgba(245,166,35,0.08)'
                   : 'rgba(136,136,136,0.08)',
                 border: `1px solid ${
-                  position.status === 'open' ? 'rgba(68,255,151,0.2)'
+                  isVoided ? 'rgba(167,139,250,0.2)'
+                  : position.status === 'open' ? 'rgba(68,255,151,0.2)'
                   : isUnwindingPosition ? 'rgba(91,156,245,0.2)'
                   : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
@@ -242,7 +269,7 @@ export function PositionCard({
                 textTransform: 'uppercase',
               }}
             >
-              {position.status === 'pending' ? 'created' : position.status}
+              {isVoided ? 'voided' : position.status === 'pending' ? 'created' : position.status}
             </span>
           </div>
         </div>
@@ -260,8 +287,9 @@ export function PositionCard({
             value={`$${position.entry.priceUsd}`}
           />
           <MicroStat
-            label="Current price"
+            label={isVoided ? 'Settlement price' : 'Current price'}
             value={`$${position.current.markPriceUsd}`}
+            valueColor={isVoided ? '#A78BFA' : undefined}
           />
           <MicroStat
             label="Current notional"
@@ -276,7 +304,11 @@ export function PositionCard({
             value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
             valueColor={netPnlColor}
           />
-          <MicroStat label="Time to resolution" value={timeDisplay} />
+          {isVoided ? (
+            <MicroStat label="Settlement" value="Pending" valueColor="#A78BFA" />
+          ) : (
+            <MicroStat label="Time to resolution" value={timeDisplay} />
+          )}
           <MicroStat
             label="Entry leverage"
             value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
@@ -285,15 +317,19 @@ export function PositionCard({
             label="Current leverage"
             value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
           />
-          <MicroStat
-            label="Liquidation price"
-            value={`$${position.risk.currentLiquidationPriceUsd}`}
-            valueColor="#F5A623"
-          />
-          <MicroStat
-            label="Distance to liquidation"
-            value={distancePctDisplay}
-          />
+          {!isVoided && (
+            <>
+              <MicroStat
+                label="Liquidation price"
+                value={`$${position.risk.currentLiquidationPriceUsd}`}
+                valueColor="#F5A623"
+              />
+              <MicroStat
+                label="Distance to liquidation"
+                value={distancePctDisplay}
+              />
+            </>
+          )}
         </div>
       </div>
     </CardShell>
