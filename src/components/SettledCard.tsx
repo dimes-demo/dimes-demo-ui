@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { ClosedPosition } from '../api/types'
-import { useMarketTitle } from '../hooks/useMarketTitle'
+import { useMarket } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 import { MicroStat, PnlHero } from './CardViewParts'
+import { PositionIdRow } from './PositionCard'
 
 const reasonLabels: Record<string, string> = {
   closed: 'Closed',
@@ -22,8 +23,8 @@ export function SettledCard({
   isSelected?: boolean
 }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const marketTitle = useMarketTitle(position.marketTicker)
-  const displayTitle = marketTitle || position.marketTicker
+  const market = useMarket(position.marketTicker)
+  const displayTitle = market?.title || position.marketTicker
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value)
@@ -60,24 +61,41 @@ export function SettledCard({
         >
           <div style={{ minWidth: 0, flex: '1 1 auto' }}>
             <div
-              onClick={(e) => { e.stopPropagation(); copyToClipboard(position.marketTicker, 'ticker') }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (market?.id) copyToClipboard(market.id, 'marketId')
+              }}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: copiedKey === 'ticker' ? 'var(--green)' : '#ffffff',
+                color: copiedKey === 'marketId' ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                cursor: 'pointer',
+                cursor: market?.id ? 'pointer' : 'default',
                 transition: 'color 0.2s',
                 lineHeight: 1.3,
               }}
-              title={copiedKey === 'ticker' ? 'Copied!' : displayTitle}
+              title={
+                copiedKey === 'marketId'
+                  ? 'Market ID copied'
+                  : market?.id
+                    ? `${displayTitle} — click to copy market ID`
+                    : displayTitle
+              }
             >
-              {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
+              {copiedKey === 'marketId' ? '✓ Market ID copied' : displayTitle}
             </div>
+            <PositionIdRow
+              positionId={position.id}
+              copied={copiedKey === 'positionId'}
+              onCopy={(e) => {
+                e.stopPropagation()
+                copyToClipboard(position.id, 'positionId')
+              }}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span

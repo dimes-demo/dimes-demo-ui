@@ -1,46 +1,46 @@
 import { ConnectButton } from '@rainbow-me/rainbowkit'
 
 /**
- * Pre-connect landing block. Rendered on top of the market list until the
- * user connects a wallet. Kept deliberately short — enough to explain what
- * the app does and set expectations about sandbox mode.
+ * Pre-connect landing block. Centered logo + welcome blurb + connect.
+ * Squared edges, muted palette — matches the Sandbox 2.0 UI.
  */
 export function Hero() {
   return (
     <section
       style={{
-        padding: '56px 0 40px',
-        borderBottom: '1px solid var(--border)',
-        marginBottom: 24,
+        minHeight: 'calc(100vh - 180px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: '40px 20px',
       }}
     >
-      <h1
+      <img
+        src="/logo-dark.png"
+        alt="Dimes"
         style={{
-          fontSize: 'clamp(32px, 6vw, 56px)',
-          fontWeight: 700,
-          lineHeight: 1.05,
-          letterSpacing: '-0.02em',
-          color: 'var(--text)',
-          maxWidth: '18ch',
+          height: 64,
+          width: 'auto',
+          display: 'block',
+          marginBottom: 24,
         }}
-      >
-        Leveraged{' '}
-        <span style={{ color: 'var(--yellow)' }}>prediction markets</span>,
-        settled on-chain.
-      </h1>
+      />
 
       <p
         style={{
-          marginTop: 18,
+          maxWidth: 620,
           color: 'var(--text-muted)',
-          fontSize: 'var(--fs-md)',
-          lineHeight: 1.55,
-          maxWidth: '54ch',
+          fontSize: 14,
+          lineHeight: 1.65,
+          margin: 0,
         }}
       >
-        Up to 10× on Polymarket outcomes through the Dimes vault on Polygon.
-        This repo is a reference frontend for the Dimes API — fork it, wire
-        in your own backend, and ship.
+        Welcome to Dimes Sandbox v2.0, last updated: April 27, 2026. In this
+        sandbox you'll be able to browse live prediction markets, fetch
+        leveraged quotes, approve mock USDC, and open YES/NO positions
+        end-to-end on Polygon.
       </p>
 
       <div
@@ -48,46 +48,109 @@ export function Hero() {
           marginTop: 28,
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 12,
+          gap: 10,
           alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        <ConnectButton label="Connect wallet to trade" />
+        <ConnectButton.Custom>
+          {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
+            const ready = mounted
+            const connected = ready && account && chain
+
+            const baseStyle: React.CSSProperties = {
+              padding: '10px 18px',
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 0,
+              cursor: 'pointer',
+              fontFamily: 'var(--font)',
+              lineHeight: 1.2,
+              border: '1px solid var(--border)',
+              background: 'var(--surface-subtle)',
+              color: 'var(--text)',
+              transition: 'border-color 0.15s ease, background 0.15s ease',
+            }
+
+            return (
+              <div
+                style={{
+                  opacity: !ready ? 0 : 1,
+                  pointerEvents: !ready ? 'none' : undefined,
+                  display: 'inline-flex',
+                  gap: 8,
+                }}
+              >
+                {(() => {
+                  if (!connected) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={openConnectModal}
+                        style={{
+                          ...baseStyle,
+                          background: 'var(--yellow)',
+                          color: 'var(--yellow-ink)',
+                          borderColor: 'var(--yellow)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Connect wallet
+                      </button>
+                    )
+                  }
+                  if (chain.unsupported) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={openChainModal}
+                        style={{
+                          ...baseStyle,
+                          background: 'rgba(224,82,82,0.08)',
+                          color: 'var(--red)',
+                          borderColor: 'rgba(224,82,82,0.3)',
+                        }}
+                      >
+                        Wrong network
+                      </button>
+                    )
+                  }
+                  return (
+                    <>
+                      <button type="button" onClick={openChainModal} style={baseStyle}>
+                        {chain.name}
+                      </button>
+                      <button type="button" onClick={openAccountModal} style={baseStyle}>
+                        {account.displayName}
+                      </button>
+                    </>
+                  )
+                })()}
+              </div>
+            )
+          }}
+        </ConnectButton.Custom>
+
         <a
           href="https://docs.dimes.fi"
           target="_blank"
           rel="noreferrer"
-          className="btn btn--ghost"
-          style={{ textDecoration: 'none' }}
+          style={{
+            padding: '10px 18px',
+            fontSize: 13,
+            fontWeight: 600,
+            borderRadius: 0,
+            border: '1px solid var(--border)',
+            background: 'transparent',
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font)',
+            textDecoration: 'none',
+            lineHeight: 1.2,
+            transition: 'border-color 0.15s ease, color 0.15s ease',
+          }}
         >
           View docs →
         </a>
-      </div>
-
-      <div
-        style={{
-          marginTop: 32,
-          padding: '10px 14px',
-          background: 'var(--surface-subtle)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 'var(--fs-xs)',
-          color: 'var(--text-muted)',
-        }}
-      >
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: 'var(--yellow)',
-            boxShadow: '0 0 8px rgba(238, 255, 0, 0.6)',
-          }}
-        />
-        Sandbox mode — browsing is free, connect a wallet to place trades.
       </div>
     </section>
   )
