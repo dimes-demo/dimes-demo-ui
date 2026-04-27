@@ -32,13 +32,14 @@ const DEFAULT_LEVERAGE_BPS = 20000 // 2x
 const SLIPPAGE_PRESETS_BPS = [200, 500, 800] as const
 const FORCED_LEVERAGE_STEP_BPS = 5000 // 0.5x
 
-function clampLeverageToMarket(target: number, market: { leverage: MarketLeverage }, side: 'yes' | 'no' = 'yes') {
+function clampLeverageToMarket(target: number, market: { leverage: MarketLeverage }, side: 'yes' | 'no' = 'yes', round: 'nearest' | 'down' | 'up' = 'nearest') {
   const step = Math.max(market.leverage.stepBps, FORCED_LEVERAGE_STEP_BPS)
   const minBps = market.leverage.minBps
   const maxBps = leverageMaxBps(market.leverage, side)
   const maxSteps = Math.max(0, Math.floor((maxBps - minBps) / step))
   const clamped = Math.min(Math.max(target, minBps), minBps + maxSteps * step)
-  const k = Math.round((clamped - minBps) / step)
+  const snap = round === 'down' ? Math.floor : round === 'up' ? Math.ceil : Math.round
+  const k = snap((clamped - minBps) / step)
   return minBps + Math.min(Math.max(k, 0), maxSteps) * step
 }
 
@@ -153,7 +154,6 @@ export function TradePanel({
 
   const handleGetQuote = () => {
     if (!canGetQuote) return
-    resetCreate()
     getQuote({
       marketTicker: market.ticker,
       effectiveSide: side,
@@ -198,10 +198,13 @@ export function TradePanel({
     if (!adj) return
     if (Math.abs(adj.toValue - adj.fromValue) < 1e-4) return
 
+    let toValue = adj.toValue
     if (adj.field === 'collateral') {
       setCollateralUsd(adj.toValue.toFixed(2))
     } else if (adj.field === 'leverage') {
-      setLeverageBps(adj.toValue)
+      const round = adj.reason === 'clamp-max' ? 'down' : 'up'
+      toValue = clampLeverageToMarket(adj.toValue, market, side, round)
+      setLeverageBps(toValue)
     } else if (adj.field === 'slippage') {
       setSlippageBps(adj.toValue)
       setAdvancedOpen(true)
@@ -210,7 +213,7 @@ export function TradePanel({
     setCorrection({
       field: adj.field,
       fromValue: adj.fromValue,
-      toValue: adj.toValue,
+      toValue,
       nonce: correctionNonceRef.current,
     })
 

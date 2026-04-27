@@ -21,15 +21,19 @@ export function useOffer() {
     setIsLoading(true);
     setError(null);
     try {
+      // API requires leverage to be a multiple of 2500 bps (0.25x)
+      const LEVERAGE_STEP_BPS = 2500;
+      const leverageBps = Math.round(params.leverageBps / LEVERAGE_STEP_BPS) * LEVERAGE_STEP_BPS;
+
       // notional (USD pips) = collateral × leverage. Leverage is in bps so
       // dividing by 10_000 converts to a multiplier, then ×10_000 converts
       // dollars to pips.
-      const notionalUsdPips = Math.round(params.collateralUsd * params.leverageBps);
+      const notionalUsdPips = Math.round(params.collateralUsd * leverageBps);
 
       const result = await createOffer({
         marketTicker: params.marketTicker,
         effectiveSide: params.effectiveSide,
-        leverageBps: params.leverageBps,
+        leverageBps,
         notionalAmountUsdPips: notionalUsdPips.toString(),
         slippageBps: params.slippageBps,
       });
