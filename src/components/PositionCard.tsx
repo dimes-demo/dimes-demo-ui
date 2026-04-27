@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MicroStat } from './CardViewParts'
 import type { OpenPosition } from '../api/types'
-import { useMarketTitle } from '../hooks/useMarketTitle'
+import { useMarket } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 
 export function PositionCard({
@@ -14,8 +14,8 @@ export function PositionCard({
   isSelected?: boolean
 }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const marketTitle = useMarketTitle(position.marketTicker)
-  const displayTitle = marketTitle || position.marketTicker
+  const market = useMarket(position.marketTicker)
+  const displayTitle = market?.title || position.marketTicker
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value)
@@ -69,7 +69,6 @@ export function PositionCard({
   }
 
   const positionValueUsd = parseFloat(position.current.positionValueUsd)
-  const investedUsd = entryCollateral
 
   return (
     <CardShell
@@ -105,14 +104,18 @@ export function PositionCard({
             />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ fontSize: 12, color: '#F5A623', fontWeight: 600 }}>
-                {isClosingPosition ? 'Closing on-chain' : isSettlingPosition ? 'Settling on-chain' : 'Finalizing on-chain'}
+                {isClosingPosition
+                  ? 'Closing position'
+                  : isSettlingPosition
+                  ? 'Settling position'
+                  : 'Opening position'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                 {isClosingPosition
-                  ? 'Waiting for the vault to confirm your close…'
+                  ? 'Awaiting on-chain confirmation on Polygon…'
                   : isSettlingPosition
-                  ? 'Market resolved — waiting for on-chain settlement…'
-                  : 'Waiting for the vault to confirm your position…'}
+                  ? 'Market resolved — awaiting on-chain settlement…'
+                  : 'Awaiting on-chain confirmation on Polygon…'}
               </div>
             </div>
             <div
@@ -160,24 +163,41 @@ export function PositionCard({
         >
           <div style={{ minWidth: 0, flex: '1 1 auto' }}>
             <div
-              onClick={(e) => { e.stopPropagation(); copyToClipboard(position.marketTicker, 'ticker') }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (market?.id) copyToClipboard(market.id, 'marketId')
+              }}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: copiedKey === 'ticker' ? 'var(--green)' : '#ffffff',
+                color: copiedKey === 'marketId' ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                cursor: 'pointer',
+                cursor: market?.id ? 'pointer' : 'default',
                 transition: 'color 0.2s',
                 lineHeight: 1.3,
               }}
-              title={copiedKey === 'ticker' ? 'Copied!' : displayTitle}
+              title={
+                copiedKey === 'marketId'
+                  ? 'Market ID copied'
+                  : market?.id
+                    ? `${displayTitle} — click to copy market ID`
+                    : displayTitle
+              }
             >
-              {copiedKey === 'ticker' ? '✓ Copied' : displayTitle}
+              {copiedKey === 'marketId' ? '✓ Market ID copied' : displayTitle}
             </div>
+            <PositionIdRow
+              positionId={position.id}
+              copied={copiedKey === 'positionId'}
+              onCopy={(e) => {
+                e.stopPropagation()
+                copyToClipboard(position.id, 'positionId')
+              }}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <span
@@ -219,7 +239,7 @@ export function PositionCard({
           </div>
         </div>
 
-        {/* Simple stats */}
+        {/* Simple stats — 5 rows × 2 cols */}
         <div
           style={{
             display: 'grid',
@@ -228,59 +248,102 @@ export function PositionCard({
           }}
         >
           <MicroStat
-            label="Position value"
-            value={`$${positionValueUsd.toFixed(2)}`}
+            label="Entry price"
+            value={`$${position.entry.priceUsd}`}
           />
           <MicroStat
-            label="Invested"
-            value={`$${investedUsd.toFixed(2)}`}
+            label="Current price"
+            value={`$${position.current.markPriceUsd}`}
+          />
+          <MicroStat
+            label="Current notional"
+            value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
+          />
+          <MicroStat
+            label="Position value"
+            value={`$${positionValueUsd.toFixed(2)}`}
           />
           <MicroStat
             label="Net PnL"
             value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
             valueColor={netPnlColor}
           />
-          {isFullyDeleveraged ? (
-            <div
-              style={{
-                gridColumn: '1 / -1',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(68,255,151,0.06)',
-                border: '1px solid rgba(68,255,151,0.15)',
-                borderRadius: 0,
-                padding: '8px 10px',
-              }}
-            >
-              <span style={{ fontSize: 11, color: 'var(--green)', lineHeight: 1.35 }}>
-                No liquidation risk — your remaining funds are fully yours.
-              </span>
-            </div>
-          ) : (
-            <>
-              <MicroStat
-                label="Distance to liquidation"
-                value={distancePctDisplay}
-              />
-              <MicroStat
-                label="Liquidation price"
-                value={`$${position.risk.currentLiquidationPriceUsd}`}
-                valueColor="#F5A623"
-              />
-            </>
-          )}
-          <MicroStat
-            label="Current price"
-            value={`$${position.current.markPriceUsd}`}
-          />
           <MicroStat label="Time to resolution" value={timeDisplay} />
           <MicroStat
-            label="Weighted leverage"
-            value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
+            label="Entry leverage"
+            value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
+          />
+          <MicroStat
+            label="Current leverage"
+            value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+          />
+          <MicroStat
+            label="Liquidation price"
+            value={`$${position.risk.currentLiquidationPriceUsd}`}
+            valueColor="#F5A623"
+          />
+          <MicroStat
+            label="Distance to liquidation"
+            value={distancePctDisplay}
           />
         </div>
       </div>
     </CardShell>
+  )
+}
+
+function truncateId(value: string, head = 10, tail = 6) {
+  return value.length <= head + tail + 1
+    ? value
+    : `${value.slice(0, head)}…${value.slice(-tail)}`
+}
+
+export function PositionIdRow({
+  positionId,
+  copied,
+  onCopy,
+}: {
+  positionId: string
+  copied: boolean
+  onCopy: (e: React.MouseEvent) => void
+}) {
+  return (
+    <div
+      onClick={onCopy}
+      title={copied ? 'Position ID copied' : `Click to copy: ${positionId}`}
+      style={{
+        marginTop: 4,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 11,
+        fontFamily: 'monospace',
+        color: copied ? 'var(--green)' : 'var(--text-dim)',
+        cursor: 'pointer',
+        transition: 'color 0.2s',
+        userSelect: 'none',
+      }}
+    >
+      <span style={{ letterSpacing: '0.04em', textTransform: 'uppercase', fontFamily: 'var(--font)', fontSize: 10 }}>
+        {copied ? '✓ Copied' : 'ID'}
+      </span>
+      <span>{truncateId(positionId)}</span>
+      {!copied && (
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ opacity: 0.6 }}
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </div>
   )
 }

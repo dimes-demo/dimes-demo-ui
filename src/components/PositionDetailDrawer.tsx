@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type {
   Position,
   OpenPosition,
@@ -11,12 +11,13 @@ import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
-import { useMarketTitle } from '../hooks/useMarketTitle'
+import { useMarket } from '../hooks/useMarketTitle'
 import { formatSlippageBps } from '../utils/format'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { StatGroup, PnlHero } from './CardViewParts'
 import { LeverageChart } from './LeverageChart'
+import { PositionIdRow } from './PositionCard'
 
 export function PositionDetailDrawer({
   position,
@@ -72,13 +73,23 @@ export function PositionDetailDrawer({
 
 function DrawerHeader({
   title,
+  marketId,
+  positionId,
   onClose,
   badges,
 }: {
   title: string
+  marketId?: string | null
+  positionId?: string
   onClose: () => void
   badges: React.ReactNode
 }) {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const copy = (value: string, key: string) => {
+    navigator.clipboard.writeText(value)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
+  }
   return (
     <div style={{ padding: '20px 24px 0' }}>
       <div
@@ -92,20 +103,40 @@ function DrawerHeader({
       >
         <div style={{ minWidth: 0, flex: '1 1 auto' }}>
           <div
+            onClick={() => marketId && copy(marketId, 'marketId')}
+            title={
+              copiedKey === 'marketId'
+                ? 'Market ID copied'
+                : marketId
+                  ? `${title} — click to copy market ID`
+                  : title
+            }
             style={{
               fontSize: 15,
               fontWeight: 600,
-              color: '#ffffff',
+              color: copiedKey === 'marketId' ? 'var(--green)' : '#ffffff',
               lineHeight: 1.3,
               overflow: 'hidden',
               display: '-webkit-box',
               WebkitLineClamp: 3,
               WebkitBoxOrient: 'vertical',
               textOverflow: 'ellipsis',
+              cursor: marketId ? 'pointer' : 'default',
+              transition: 'color 0.2s',
             }}
           >
-            {title}
+            {copiedKey === 'marketId' ? '✓ Market ID copied' : title}
           </div>
+          {positionId && (
+            <PositionIdRow
+              positionId={positionId}
+              copied={copiedKey === 'positionId'}
+              onCopy={(e) => {
+                e.stopPropagation()
+                copy(positionId, 'positionId')
+              }}
+            />
+          )}
           <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             {badges}
           </div>
@@ -186,8 +217,8 @@ function OpenPositionDetail({
     reset: resetClose,
   } = useRequestClose()
 
-  const marketTitle = useMarketTitle(position.marketTicker)
-  const displayTitle = marketTitle || position.marketTicker
+  const market = useMarket(position.marketTicker)
+  const displayTitle = market?.title || position.marketTicker
   const isYes = position.side === 'yes'
 
   useEffect(() => {
@@ -286,6 +317,8 @@ function OpenPositionDetail({
     <div>
       <DrawerHeader
         title={displayTitle}
+        marketId={market?.id}
+        positionId={position.id}
         onClose={onClose}
         badges={
           <>
@@ -505,8 +538,8 @@ function ClosedPositionDetail({
   isUnwindsLoading?: boolean
   onClose: () => void
 }) {
-  const marketTitle = useMarketTitle(position.marketTicker)
-  const displayTitle = marketTitle || position.marketTicker
+  const market = useMarket(position.marketTicker)
+  const displayTitle = market?.title || position.marketTicker
 
   const realizedPnl = parseFloat(position.result.realizedPnlUsd)
   const pnlColor = realizedPnl >= 0 ? 'var(--green)' : 'var(--red)'
@@ -540,6 +573,8 @@ function ClosedPositionDetail({
     <div>
       <DrawerHeader
         title={displayTitle}
+        marketId={market?.id}
+        positionId={position.id}
         onClose={onClose}
         badges={
           <Badge

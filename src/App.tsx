@@ -54,12 +54,12 @@ function App() {
 
   return (
     <Layout>
-      <Header />
+      {isConnected && <Header />}
 
       <main style={{ padding: '24px 0' }}>
         {!isConnected && <Hero />}
 
-        {!jwt && (
+        {isConnected && !jwt && (
           <div style={{ padding: '32px 0', textAlign: 'center' }}>
             <span style={{ color: 'var(--text-dim)', fontSize: 'var(--fs-sm)' }}>
               Loading…

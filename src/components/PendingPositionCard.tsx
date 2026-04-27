@@ -1,10 +1,19 @@
+import { useState } from 'react'
 import type { PendingPositionStub } from '../store/pendingPositions'
-import { useMarketTitle } from '../hooks/useMarketTitle'
+import { useMarket } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 
 export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
-  const marketTitle = useMarketTitle(stub.marketTicker)
-  const displayTitle = marketTitle || stub.marketTicker
+  const market = useMarket(stub.marketTicker)
+  const displayTitle = market?.title || stub.marketTicker
+  const [marketIdCopied, setMarketIdCopied] = useState(false)
+  const onCopyMarketId = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!market?.id) return
+    navigator.clipboard.writeText(market.id)
+    setMarketIdCopied(true)
+    setTimeout(() => setMarketIdCopied(false), 1500)
+  }
   const isYes = stub.side === 'yes'
   const sideColor = isYes ? 'var(--green)' : 'var(--red)'
   const sideSoft = isYes ? 'var(--green-soft)' : 'var(--red-soft)'
@@ -82,20 +91,29 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
         >
           <div style={{ minWidth: 0 }}>
             <div
+              onClick={onCopyMarketId}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: '#ffffff',
+                color: marketIdCopied ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
                 lineHeight: 1.3,
+                cursor: market?.id ? 'pointer' : 'default',
+                transition: 'color 0.2s',
               }}
-              title={displayTitle}
+              title={
+                marketIdCopied
+                  ? 'Market ID copied'
+                  : market?.id
+                    ? `${displayTitle} — click to copy market ID`
+                    : displayTitle
+              }
             >
-              {displayTitle}
+              {marketIdCopied ? '✓ Market ID copied' : displayTitle}
             </div>
             <div
               style={{
