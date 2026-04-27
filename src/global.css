@@ -494,67 +494,56 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------------
-   Markets + trade panel side-by-side layout.
-   - Columns stretch so the trade panel matches the markets table height.
-   - Panel column starts with a spacer so its CardShell tops the table-headers
-     row (not the search toolbar).
+   Trade drawer — slides in from right, overlays content.
    -------------------------------------------------------------------------- */
 
-.markets-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 0;
-  align-items: stretch;
+.trade-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 280ms cubic-bezier(0.32, 0.72, 0.24, 1);
 }
 
-.markets-layout__list {
-  min-width: 0;
+.trade-drawer-backdrop--open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.trade-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 910;
+  width: 420px;
+  max-width: 100vw;
+  transform: translateX(100%);
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0.24, 1);
+  pointer-events: none;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 40px rgba(0, 0, 0, 0.5);
 }
 
-.markets-layout__panel {
-  min-width: 0;
-  margin-left: -1px;
-  display: flex;
-  flex-direction: column;
+.trade-drawer--open {
+  transform: translateX(0);
+  pointer-events: auto;
 }
 
-.markets-layout__panel-fill {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
+.trade-drawer__inner {
+  flex: 1 1 0;
+  overflow-y: auto;
+  padding: 16px 0;
 }
 
-.trade-panel-empty {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-dim);
-  font-size: var(--fs-sm);
-  background: var(--card);
-  border: 1px solid var(--border);
-  min-height: 320px;
-}
-
-@media (max-width: 1024px) {
-  .markets-layout {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    align-items: start;
-  }
-
-  .markets-layout__panel {
-    margin-left: 0;
-  }
-
-  .markets-layout__panel > [aria-hidden] {
-    display: none;
-  }
-
-  .trade-panel-empty {
-    flex: 0 0 auto;
+@media (max-width: 480px) {
+  .trade-drawer {
+    width: 100vw;
   }
 }
 

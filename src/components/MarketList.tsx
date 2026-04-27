@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useMarkets } from '../hooks/useMarkets'
-import { usePrefetchMarketOdds } from '../hooks/useMarketOdds'
 import type { Market } from '../api/types'
 import { leverageMaxBps } from '../api/types'
 
@@ -22,8 +21,9 @@ function setQueryParams(params: Record<string, string | undefined>) {
   window.history.replaceState(null, '', url.toString())
 }
 
-type SortKey = 'title' | 'category' | 'status' | 'eligible' | 'leverage'
-type SortDir = 'asc' | 'desc'
+function formatCategory(c: string) {
+  return c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
+}
 
 const STATUS_DESCRIPTIONS: Record<string, string> = {
   open: 'Market is open and accepting trades',
@@ -54,8 +54,6 @@ export function MarketList({
   const [status, setStatusState] = useState<string | undefined>(() => getQueryParam('status'))
   const [eligible, setEligibleState] = useState<string | undefined>(() => getQueryParam('eligible') ?? 'yes')
   const [copiedTicker, setCopiedTicker] = useState<string | null>(null)
-  const [sortKey, setSortKey] = useState<SortKey | null>(null)
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -121,46 +119,7 @@ export function MarketList({
     onTotalCount?.(page?.totalCount)
   }, [page?.totalCount, onTotalCount])
 
-  const sortedMarkets = useMemo(() => {
-    if (!markets) return markets
-    if (!sortKey) return markets
-    const copy = [...markets]
-    const dir = sortDir === 'asc' ? 1 : -1
-    copy.sort((a, b) => {
-      let av: string | number = ''
-      let bv: string | number = ''
-      switch (sortKey) {
-        case 'title':
-          av = (a.title || '').toLowerCase()
-          bv = (b.title || '').toLowerCase()
-          break
-        case 'category':
-          av = (a.category || '').toLowerCase()
-          bv = (b.category || '').toLowerCase()
-          break
-        case 'status':
-          av = a.status
-          bv = b.status
-          break
-        case 'eligible':
-          av = a.acceptingNewPositions ? 1 : 0
-          bv = b.acceptingNewPositions ? 1 : 0
-          break
-        case 'leverage':
-          av = Math.max(leverageMaxBps(a.leverage, 'yes'), leverageMaxBps(a.leverage, 'no'))
-          bv = Math.max(leverageMaxBps(b.leverage, 'yes'), leverageMaxBps(b.leverage, 'no'))
-          break
-      }
-      if (av < bv) return -1 * dir
-      if (av > bv) return 1 * dir
-      return 0
-    })
-    return copy
-  }, [markets, sortKey, sortDir])
-
-  const categories = ['Sports', 'Crypto']
-  const formatCategory = (c: string) =>
-    c.charAt(0).toUpperCase() + c.slice(1).toLowerCase()
+  const categories = ['Sport', 'Crypto']
 
   const shouldScrollRef = useRef(false)
   useEffect(() => {
@@ -194,14 +153,7 @@ export function MarketList({
     setTimeout(() => setCopiedTicker(null), 1500)
   }
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortKey(key)
-      setSortDir('asc')
-    }
-  }
+
 
   return (
     <div ref={containerRef}>
@@ -307,31 +259,29 @@ export function MarketList({
               </colgroup>
               <thead>
                 <tr>
-                  <SortableTh label="Title" sortKey="title" current={sortKey} dir={sortDir} onSort={toggleSort} />
-                  <SortableTh label="Category" sortKey="category" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
-                  <SortableTh label="Status" sortKey="status" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
-                  <SortableTh label="Eligible" sortKey="eligible" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
-                  <SortableTh label="Max Lev." sortKey="leverage" current={sortKey} dir={sortDir} onSort={toggleSort} align="center" />
-                  <th
-                    style={{
-                      padding: '10px 14px',
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: 'var(--text-dim)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      textAlign: 'center',
-                      whiteSpace: 'nowrap',
-                      borderBottom: '1px solid rgba(255,255,255,0.06)',
-                      background: 'rgba(20,20,20,0.95)',
-                    }}
-                  >
-                    Ticker
-                  </th>
+                  {['Title', 'Category', 'Status', 'Eligible', 'Max Lev.', 'Ticker'].map((label, i) => (
+                    <th
+                      key={label}
+                      style={{
+                        padding: '10px 14px',
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: 'var(--text-dim)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        textAlign: i === 0 ? 'left' : 'center',
+                        whiteSpace: 'nowrap',
+                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        background: 'rgba(20,20,20,0.95)',
+                      }}
+                    >
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {sortedMarkets!.map((market) => (
+                {markets!.map((market) => (
                   <MarketRow
                     key={market.id}
                     market={market}
@@ -346,72 +296,29 @@ export function MarketList({
           </div>
 
           {/* Pagination */}
-          {(hasPrev || hasMore) && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: 8,
-                marginTop: 12,
-                padding: '0 4px',
-              }}
-            >
-              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                Page {cursorStack.length + 1}
-              </span>
-              <PageButton label="Previous" disabled={!hasPrev} onClick={goPrev} />
-              <PageButton label="Next" disabled={!hasMore} onClick={goNext} />
-            </div>
-          )}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 8,
+              marginTop: 12,
+              padding: '0 4px',
+            }}
+          >
+            <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              Page {cursorStack.length + 1}
+            </span>
+            <PageButton label="Previous" disabled={!hasPrev} onClick={goPrev} />
+            <PageButton label="Next" disabled={!hasMore} onClick={goNext} />
+          </div>
         </>
       )}
     </div>
   )
 }
 
-function SortableTh({
-  label,
-  sortKey,
-  current,
-  dir,
-  onSort,
-  align = 'left',
-}: {
-  label: string
-  sortKey: SortKey
-  current: SortKey | null
-  dir: SortDir
-  onSort: (k: SortKey) => void
-  align?: 'left' | 'center' | 'right'
-}) {
-  const isActive = current === sortKey
-  const arrow = isActive ? (dir === 'asc' ? '▲' : '▼') : '↕'
-  return (
-    <th
-      onClick={() => onSort(sortKey)}
-      style={{
-        padding: '10px 14px',
-        fontSize: 11,
-        fontWeight: 500,
-        color: isActive ? 'var(--yellow)' : 'var(--text-dim)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        textAlign: align,
-        whiteSpace: 'nowrap',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        cursor: 'pointer',
-        userSelect: 'none',
-        background: 'rgba(20,20,20,0.95)',
-      }}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {label}
-        <span style={{ fontSize: 9, opacity: isActive ? 1 : 0.4 }}>{arrow}</span>
-      </span>
-    </th>
-  )
-}
+
 
 function MarketRow({
   market,
@@ -427,7 +334,7 @@ function MarketRow({
   isSelected: boolean
 }) {
   const [hovered, setHovered] = useState(false)
-  const prefetchOdds = usePrefetchMarketOdds()
+
   const maxLeverage = (Math.max(leverageMaxBps(market.leverage, 'yes'), leverageMaxBps(market.leverage, 'no')) / 10000).toFixed(0)
 
   const tdStyle: React.CSSProperties = {
@@ -460,11 +367,6 @@ function MarketRow({
       onClick={() => onSelect(market)}
       onMouseEnter={() => {
         setHovered(true)
-        prefetchOdds(
-          market.ticker,
-          market.leverage.minBps,
-          market.acceptingNewPositions,
-        )
       }}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -496,7 +398,7 @@ function MarketRow({
               padding: '2px 8px',
             }}
           >
-            {market.category}
+            {formatCategory(market.category)}
           </span>
         )}
       </td>
@@ -588,7 +490,7 @@ function MarketRow({
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          {isCopied ? '✓' : ''}
+{}
         </button>
       </td>
     </tr>
@@ -596,33 +498,90 @@ function MarketRow({
 }
 
 function MarketListSkeleton() {
-  const columns = [240, 70, 60, 50, 60, 40]
-  const rows = 18
-  const rowTdStyle: React.CSSProperties = {
+  const rows = 15
+  const thStyle: React.CSSProperties = {
+    padding: '10px 14px',
+    fontSize: 11,
+    fontWeight: 500,
+    color: 'var(--text-dim)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    whiteSpace: 'nowrap',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    background: 'rgba(20,20,20,0.95)',
+  }
+  const tdStyle: React.CSSProperties = {
     padding: '12px 14px',
+    fontSize: 13,
+    color: 'var(--text)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
     borderBottom: '1px solid rgba(255,255,255,0.04)',
   }
+  const pulse = (r: number, c: number): React.CSSProperties => ({
+    animation: 'marketSkeletonPulse 1.4s ease-in-out infinite',
+    animationDelay: `${(r * 40 + c * 20) % 600}ms`,
+  })
   return (
+    <>
     <div className="markets-table-wrap">
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: 'auto' }} />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 90 }} />
+          <col style={{ width: 60 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={thStyle}>Title</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Category</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Eligible</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Max Lev.</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Ticker</th>
+          </tr>
+        </thead>
         <tbody>
           {Array.from({ length: rows }).map((_, r) => (
             <tr key={r}>
-              {columns.map((w, c) => (
-                <td key={c} style={rowTdStyle}>
-                  <div
-                    style={{
-                      height: 10,
-                      width: w,
-                      maxWidth: '100%',
-                      borderRadius: 0,
-                      background: 'rgba(255,255,255,0.06)',
-                      animation: 'marketSkeletonPulse 1.4s ease-in-out infinite',
-                      animationDelay: `${(r * 40 + c * 20) % 600}ms`,
-                    }}
-                  />
-                </td>
-              ))}
+              {/* Title — plain text, matches MarketRow fontSize 13 / fontWeight 500 */}
+              <td style={tdStyle}>
+                <span style={{ fontWeight: 500, color: 'transparent', background: 'rgba(255,255,255,0.06)', ...pulse(r, 0) }}>
+                  Loading market title here
+                </span>
+              </td>
+              {/* Category — no border badge */}
+              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                <span style={{ fontSize: 11, padding: '2px 8px', background: 'rgba(255,255,255,0.04)', color: 'transparent', ...pulse(r, 1) }}>
+                  sport
+                </span>
+              </td>
+              {/* Status — bordered badge */}
+              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.04)', color: 'transparent', textTransform: 'uppercase', ...pulse(r, 2) }}>
+                  open
+                </span>
+              </td>
+              {/* Eligible — bordered badge */}
+              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.04)', color: 'transparent', ...pulse(r, 3) }}>
+                  YES
+                </span>
+              </td>
+              {/* Max Lev — plain text */}
+              <td style={{ ...tdStyle, textAlign: 'center', fontWeight: 600 }}>
+                <span style={{ color: 'transparent', background: 'rgba(255,255,255,0.06)', ...pulse(r, 4) }}>5x</span>
+              </td>
+              {/* Ticker — button with border + svg size */}
+              <td style={{ ...tdStyle, textAlign: 'center' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid rgba(255,255,255,0.04)', padding: '4px 8px', fontSize: 10, lineHeight: 1, ...pulse(r, 5) }}>
+                  <span style={{ width: 11, height: 11 }} />
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -634,6 +593,22 @@ function MarketListSkeleton() {
         }
       `}</style>
     </div>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 12,
+        padding: '0 4px',
+        visibility: 'hidden',
+      }}
+    >
+      <span style={{ fontSize: 12 }}>Page 1</span>
+      <button style={{ border: '1px solid transparent', padding: '6px 14px', fontSize: 12 }}>Previous</button>
+      <button style={{ border: '1px solid transparent', padding: '6px 14px', fontSize: 12 }}>Next</button>
+    </div>
+    </>
   )
 }
 

@@ -36,12 +36,10 @@ export function useMarketOdds(
   acceptingNewPositions: boolean,
   leverageMinBps: number,
 ): Odds | null {
-  const jwt = useAuthStore((s) => s.jwt)
-  const enabled = !!jwt && !!marketTicker && acceptingNewPositions
   const { data } = useQuery<Odds | null>({
     queryKey: marketTicker ? ODDS_QUERY_KEY(marketTicker) : ['market-odds', 'none'],
     queryFn: () => fetchOdds(marketTicker!, leverageMinBps),
-    enabled,
+    enabled: false,
     staleTime: STALE_TIME,
     retry: 0,
   })

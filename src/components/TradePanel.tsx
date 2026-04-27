@@ -185,18 +185,12 @@ export function TradePanel({
     nonce: number
   } | null>(null)
   const [errorPulseNonce, setErrorPulseNonce] = useState(0)
-  const lastHandledErrorRef = useRef<unknown>(null)
   const correctionNonceRef = useRef(0)
   const adjustmentRef = useRef(adjustment)
   adjustmentRef.current = adjustment
 
   useEffect(() => {
-    if (!offerError) {
-      lastHandledErrorRef.current = null
-      return
-    }
-    if (offerError === lastHandledErrorRef.current) return
-    lastHandledErrorRef.current = offerError
+    if (!offerError) return
 
     setErrorPulseNonce((n) => n + 1)
 
@@ -220,8 +214,6 @@ export function TradePanel({
       nonce: correctionNonceRef.current,
     })
 
-    const timer = setTimeout(clearOffer, 700)
-    return () => clearTimeout(timer)
   }, [offerError])
 
   // Tween display values for whichever field is mid-correction. When the
@@ -542,7 +534,7 @@ export function TradePanel({
           )}
         </div>
 
-        <ErrorBanner error={offerError} onDismiss={clearOffer} />
+        {!offerHint && <ErrorBanner error={offerError} onDismiss={clearOffer} />}
         <QuoteErrorHint
           hint={offerHint}
           adjustment={adjustment}

@@ -1,58 +1,21 @@
-import { useEffect, useState } from 'react'
-import {
-  MicroStat,
-  StatGroup,
-  ViewToggle,
-  fadeInKeyframes,
-} from './CardViewParts'
-import { useViewMode } from '../hooks/useViewMode'
-import { useQueryClient } from '@tanstack/react-query'
-import type { OpenPosition, PositionUnwindList } from '../api/types'
-import { isDemoMode } from '../api/auth'
-import { useRequestClose } from '../contract/hooks'
-import { useCancelPosition } from '../hooks/useCancelPosition'
-import { useContractInfo } from '../hooks/useContractInfo'
+import { useState } from 'react'
+import { MicroStat } from './CardViewParts'
+import type { OpenPosition } from '../api/types'
 import { useMarketTitle } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
-import { ErrorBanner } from './ErrorBanner'
-import { StatRow } from './StatRow'
-import { LeverageChart } from './LeverageChart'
-import { formatSlippageBps } from '../utils/format'
 
 export function PositionCard({
   position,
-  unwinds,
-  isUnwindsLoading = false,
+  onClick,
+  isSelected,
 }: {
   position: OpenPosition
-  unwinds?: PositionUnwindList
-  isUnwindsLoading?: boolean
+  onClick?: () => void
+  isSelected?: boolean
 }) {
-  const queryClient = useQueryClient()
-  const cancelMutation = useCancelPosition()
-  const { data: contractInfo } = useContractInfo()
-  const unwindData = unwinds
-  const {
-    requestClose,
-    isPending: isCloseSigning,
-    isConfirming: isCloseConfirming,
-    isSuccess: isCloseConfirmed,
-    error: closeChainError,
-    receiptError: closeReceiptError,
-    simulateError: closeSimError,
-    reset: resetClose,
-  } = useRequestClose()
-
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const [viewMode, setViewMode] = useViewMode('positionCard.viewMode')
   const marketTitle = useMarketTitle(position.marketTicker)
   const displayTitle = marketTitle || position.marketTicker
-
-  useEffect(() => {
-    if (isCloseConfirmed) {
-      queryClient.invalidateQueries({ queryKey: ['positions'] })
-    }
-  }, [isCloseConfirmed, queryClient])
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value)
@@ -60,68 +23,24 @@ export function PositionCard({
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500)
   }
 
-  const isPendingPosition = position.status === 'pending'
-  const isOpenPosition = position.status === 'open'
   const isClosingPosition = position.status === 'closing'
   const isSettlingPosition = position.status === 'settling'
+  const isPendingPosition = position.status === 'pending'
   const isInFlight = isPendingPosition || isClosingPosition || isSettlingPosition
-  const canAct = (isPendingPosition || isOpenPosition) && !isDemoMode
-
-  const isBusy =
-    cancelMutation.isPending || isCloseSigning || isCloseConfirming
-
-  const actionError: unknown = isPendingPosition
-    ? cancelMutation.error
-    : closeSimError ?? closeChainError ?? closeReceiptError
-
-  const handleAction = () => {
-    if (isBusy) return
-    if (isPendingPosition) {
-      cancelMutation.mutate(position.id)
-      return
-    }
-    if (isOpenPosition) {
-      if (!contractInfo?.polygonVaultContractAddress) return
-      requestClose(contractInfo.polygonVaultContractAddress, position.onChainPositionKey)
-    }
-  }
-
-  const dismissError = () => {
-    if (isPendingPosition) cancelMutation.reset()
-    else resetClose()
-  }
-
-  const buttonLabel = (() => {
-    if (cancelMutation.isPending) return 'Cancelling...'
-    if (isCloseSigning) return 'Confirm in wallet...'
-    if (isCloseConfirming) return 'Closing...'
-    if (isCloseConfirmed) return 'Close requested'
-    return isPendingPosition ? 'Cancel Position' : 'Close Position'
-  })()
 
   const isYes = position.side === 'yes'
   const pnlValue = parseFloat(position.current.unrealizedPnlUsd)
-  const pnlColor = pnlValue >= 0 ? 'var(--green)' : 'var(--red)'
-  const pnlPrefix = pnlValue >= 0 ? '+' : ''
-  const roePct = (position.current.unrealizedPnlBps / 100).toFixed(1)
-
+  const netPnlColor = (() => {
+    const accruedFees =
+      parseFloat(position.fees.accruedLifetimeFeeUsd) +
+      parseFloat(position.fees.pendingLifetimeFeeUsd)
+    return pnlValue - accruedFees >= 0 ? 'var(--green)' : 'var(--red)'
+  })()
   const accruedFees =
     parseFloat(position.fees.accruedLifetimeFeeUsd) +
     parseFloat(position.fees.pendingLifetimeFeeUsd)
   const netPnlValue = pnlValue - accruedFees
-  const netPnlColor = netPnlValue >= 0 ? 'var(--green)' : 'var(--red)'
   const netPnlPrefix = netPnlValue >= 0 ? '+' : ''
-  const filledPrice = position.entry.effectiveEntryPriceUsd
-  const slippageBps = position.entry.effectiveSlippageBps
-  const slippageText = formatSlippageBps(slippageBps)
-  const slippageColor =
-    slippageBps == null
-      ? 'var(--text-muted)'
-      : slippageBps > 0
-      ? 'var(--red)'
-      : slippageBps < 0
-      ? 'var(--green)'
-      : 'var(--text)'
   const entryCollateral = parseFloat(position.entry.collateralUsd)
   const netRoePct = entryCollateral > 0 ? (netPnlValue / entryCollateral) * 100 : 0
 
@@ -134,14 +53,12 @@ export function PositionCard({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
-  // Distance to liquidation: a directional gap between current price and the
-  // price at which the position would be liquidated. For YES the position is
-  // liquidated when price falls TO or BELOW the liquidation price; for NO the
-  // direction flips. Past that point the position is over.
+  const isFullyDeleveraged = position.current.leverageBps <= 10000
+
   const currentPrice = parseFloat(position.current.markPriceUsd)
   const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
   let distancePctDisplay = '—'
-  if (currentPrice > 0 && liquidationPrice > 0) {
+  if (!isFullyDeleveraged && currentPrice > 0 && liquidationPrice > 0) {
     const inBuffer = isYes
       ? currentPrice > liquidationPrice
       : currentPrice < liquidationPrice
@@ -155,7 +72,11 @@ export function PositionCard({
   const investedUsd = entryCollateral
 
   return (
-    <CardShell variant="yellow">
+    <CardShell
+      variant="yellow"
+      onClick={onClick}
+      style={isSelected ? { border: '1px solid var(--yellow-border)' } : undefined}
+    >
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
         {isInFlight && (
           <div
@@ -226,6 +147,7 @@ export function PositionCard({
             `}</style>
           </div>
         )}
+
         {/* Header */}
         <div
           style={{
@@ -238,7 +160,7 @@ export function PositionCard({
         >
           <div style={{ minWidth: 0, flex: '1 1 auto' }}>
             <div
-              onClick={() => copyToClipboard(position.marketTicker, 'ticker')}
+              onClick={(e) => { e.stopPropagation(); copyToClipboard(position.marketTicker, 'ticker') }}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
@@ -263,12 +185,8 @@ export function PositionCard({
                 fontSize: 11,
                 fontWeight: 600,
                 color: isYes ? 'var(--green)' : 'var(--red)',
-                background: isYes
-                  ? 'var(--green-soft)'
-                  : 'var(--red-soft)',
-                border: `1px solid ${
-                  isYes ? 'rgba(68,255,151,0.2)' : 'rgba(224,82,82,0.2)'
-                }`,
+                background: isYes ? 'var(--green-soft)' : 'var(--red-soft)',
+                border: `1px solid ${isYes ? 'rgba(68,255,151,0.2)' : 'rgba(224,82,82,0.2)'}`,
                 borderRadius: 0,
                 padding: '2px 8px',
                 textTransform: 'uppercase',
@@ -301,183 +219,68 @@ export function PositionCard({
           </div>
         </div>
 
-        {/* View toggle muted to keep the card calm */}
-        <ViewToggle
-          mode={viewMode}
-          onChange={setViewMode}
-          accent="rgba(255,255,255,0.08)"
-          accentInk="var(--text)"
-        />
-
-        {viewMode === 'simple' ? (
-          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
+        {/* Simple stats */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '14px 18px',
+          }}
+        >
+          <MicroStat
+            label="Position value"
+            value={`$${positionValueUsd.toFixed(2)}`}
+          />
+          <MicroStat
+            label="Invested"
+            value={`$${investedUsd.toFixed(2)}`}
+          />
+          <MicroStat
+            label="Net PnL"
+            value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
+            valueColor={netPnlColor}
+          />
+          {isFullyDeleveraged ? (
             <div
               style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: '14px 18px',
+                gridColumn: '1 / -1',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                background: 'rgba(68,255,151,0.06)',
+                border: '1px solid rgba(68,255,151,0.15)',
+                borderRadius: 0,
+                padding: '8px 10px',
               }}
             >
-              <MicroStat
-                label="Position value"
-                value={`$${positionValueUsd.toFixed(2)}`}
-              />
-              <MicroStat
-                label="Invested"
-                value={`$${investedUsd.toFixed(2)}`}
-              />
-              <MicroStat
-                label="Net PnL"
-                value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
-                valueColor={netPnlColor}
-              />
+              <span style={{ fontSize: 11, color: 'var(--green)', lineHeight: 1.35 }}>
+                No liquidation risk — your remaining funds are fully yours.
+              </span>
+            </div>
+          ) : (
+            <>
               <MicroStat
                 label="Distance to liquidation"
                 value={distancePctDisplay}
-              />
-              <MicroStat
-                label="Current price"
-                value={`$${position.current.markPriceUsd}`}
               />
               <MicroStat
                 label="Liquidation price"
                 value={`$${position.risk.currentLiquidationPriceUsd}`}
                 valueColor="#F5A623"
               />
-              <MicroStat label="Time to resolution" value={timeDisplay} />
-              <MicroStat
-                label="Weighted leverage"
-                value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
-              />
-            </div>
-          </div>
-        ) : (
-          <div style={{ animation: 'fadeIn 0.2s ease', marginTop: 14 }}>
-            <StatGroup label="Pricing">
-              <StatRow label="Quote Price" value={`$${position.entry.priceUsd}`} />
-              <StatRow
-                label="Filled Price"
-                value={filledPrice ? `$${filledPrice}` : 'Pending fill'}
-                valueColor={filledPrice ? undefined : 'var(--text-muted)'}
-              />
-              <StatRow label="Current Price" value={`$${position.current.markPriceUsd}`} />
-              <StatRow
-                label="Exit Price"
-                value={`$${position.current.markPriceUsd}`}
-              />
-              <StatRow
-                label="Liquidation Price"
-                value={`$${position.risk.currentLiquidationPriceUsd}`}
-                valueColor="#F5A623"
-              />
-              <StatRow
-                label="Distance to liquidation"
-                value={distancePctDisplay}
-              />
-            </StatGroup>
-
-            <StatGroup label="Position Size">
-              <StatRow
-                label="Current Collateral"
-                value={`$${parseFloat(position.current.collateralUsd).toFixed(2)}`}
-              />
-              <StatRow
-                label="Current Notional"
-                value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
-              />
-              <StatRow
-                label="Margin Buffer"
-                value={`$${parseFloat(position.risk.marginBufferUsd).toFixed(2)}`}
-              />
-            </StatGroup>
-
-            <StatGroup label="PnL & Fees">
-              <StatRow
-                label="PnL gross / ROE"
-                value={`${pnlPrefix}$${Math.abs(pnlValue).toFixed(2)} (${pnlPrefix}${roePct}%)`}
-                valueColor={pnlColor}
-              />
-              <StatRow
-                label="PnL net / ROE"
-                value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
-                valueColor={netPnlColor}
-              />
-              <StatRow
-                label="Origination Fee"
-                value={`$${parseFloat(position.entry.originationFeeUsd).toFixed(2)} (${(position.entry.originationFeeBps / 100).toFixed(2)}%)`}
-              />
-              <StatRow
-                label="Time-based fees accrued"
-                value={`$${accruedFees.toFixed(2)}`}
-                valueColor="var(--text-muted)"
-              />
-              <StatRow label="Time-based fee rate" value="0.01% APR" />
-              <StatRow
-                label="Total fees paid"
-                value={`$${(parseFloat(position.entry.originationFeeUsd) + accruedFees).toFixed(2)}`}
-                valueColor="var(--text)"
-              />
-              <StatRow
-                label="Execution Slippage"
-                value={slippageText ?? 'Pending fill'}
-                valueColor={slippageColor}
-              />
-            </StatGroup>
-
-            <StatGroup label="Leverage">
-              <StatRow
-                label="Starting"
-                value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
-              />
-              <StatRow
-                label="Current"
-                value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
-              />
-              <StatRow
-                label="Weighted"
-                value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
-              />
-              <div style={{ marginTop: 10 }}>
-                <LeverageChart unwinds={unwindData} isLoading={isUnwindsLoading} />
-              </div>
-            </StatGroup>
-
-            <StatGroup label="Timing" last>
-              <StatRow label="Time to Resolution" value={timeDisplay} />
-              <StatRow label="Market Status" value={position.timing.marketStatus} />
-            </StatGroup>
-          </div>
-        )}
-
-        <style>{fadeInKeyframes}</style>
-
-        {/* Action button */}
-        {canAct && (
-          <button
-            onClick={handleAction}
-            disabled={isBusy}
-            style={{
-              width: '100%',
-              padding: '12px 0',
-              borderRadius: 0,
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'transparent',
-              color: isBusy ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.6)',
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: isBusy ? 'not-allowed' : 'pointer',
-              fontFamily: 'var(--font)',
-              marginTop: 16,
-              transition: 'border-color 0.2s',
-            }}
-          >
-            {buttonLabel}
-          </button>
-        )}
-
-        <ErrorBanner error={actionError} onDismiss={isPendingPosition ? dismissError : undefined} />
+            </>
+          )}
+          <MicroStat
+            label="Current price"
+            value={`$${position.current.markPriceUsd}`}
+          />
+          <MicroStat label="Time to resolution" value={timeDisplay} />
+          <MicroStat
+            label="Weighted leverage"
+            value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
+          />
+        </div>
       </div>
     </CardShell>
   )
 }
-

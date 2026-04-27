@@ -69,11 +69,9 @@ export function CapacityGuide({ market, side, leverageBps, collateralUsd }: Prop
         }}
       >
         <span style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          Collateral range
+          Est. max collateral
         </span>
         <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-          {formatUsd(bounds.minCollateralUsd)}
-          <span style={{ color: 'var(--text-dim)', margin: '0 4px' }}>&ndash;</span>
           {formatUsd(bounds.maxCollateralUsd)}
         </span>
       </div>

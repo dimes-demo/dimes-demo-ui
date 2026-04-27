@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { useAutoAuth } from './hooks/useAutoAuth'
 import { useAuthStore } from './store/auth'
@@ -41,6 +41,17 @@ function App() {
   const [marketCount, setMarketCount] = useState<number | undefined>(undefined)
   const onTotalCount = useCallback((n: number | undefined) => setMarketCount(n), [])
 
+  const drawerOpen = selectedMarket !== null
+
+  useEffect(() => {
+    if (drawerOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [drawerOpen])
+
   return (
     <Layout>
       <Header />
@@ -58,50 +69,28 @@ function App() {
 
         {jwt && (
           <>
-            <div className="markets-layout">
-              <div className="markets-layout__list">
-                <MarketsTitle count={marketCount} />
-                <MarketList
-                  onSelectMarket={setSelectedMarket}
-                  selectedMarketId={selectedMarket?.id}
-                  onTotalCount={onTotalCount}
-                />
-              </div>
-              <div className="markets-layout__panel">
-                {/* Invisible mirror of the list column's <h2> + toolbar so the
-                    trade panel starts at exactly the same Y as the table
-                    headers — heights stay in sync without magic numbers. */}
-                <div aria-hidden style={{ visibility: 'hidden', pointerEvents: 'none' }}>
-                  <h2 style={sectionTitle}>·</h2>
-                  <div className="markets-toolbar">
-                    <input className="markets-toolbar__input" tabIndex={-1} readOnly />
-                  </div>
-                </div>
-                <div className="markets-layout__panel-fill">
-                  {selectedMarket ? (
-                    <TradePanel
-                      market={selectedMarket}
-                      onClose={() => setSelectedMarket(null)}
-                    />
-                  ) : (
-                    <div className="trade-panel-empty">
-                      Select a market to start
-                    </div>
-                  )}
-                </div>
-                {/* Mirrors the markets-list pagination row so the panel's
-                    bottom edge lines up with the LAST market row, not the
-                    Prev/Next buttons. */}
-                <div
-                  aria-hidden
-                  style={{
-                    visibility: 'hidden',
-                    pointerEvents: 'none',
-                    marginTop: 12,
-                    padding: '0 4px',
-                    height: 28,
-                  }}
-                />
+            <div>
+              <MarketsTitle count={marketCount} />
+              <MarketList
+                onSelectMarket={setSelectedMarket}
+                selectedMarketId={selectedMarket?.id}
+                onTotalCount={onTotalCount}
+              />
+            </div>
+
+            {/* Trade drawer — overlays from right, no layout shift */}
+            <div
+              className={`trade-drawer-backdrop${drawerOpen ? ' trade-drawer-backdrop--open' : ''}`}
+              onClick={() => setSelectedMarket(null)}
+            />
+            <div className={`trade-drawer${drawerOpen ? ' trade-drawer--open' : ''}`}>
+              <div className="trade-drawer__inner dimes-scroll">
+                {selectedMarket && (
+                  <TradePanel
+                    market={selectedMarket}
+                    onClose={() => setSelectedMarket(null)}
+                  />
+                )}
               </div>
             </div>
 
