@@ -229,7 +229,8 @@ function OpenPositionDetail({
 
   const isPendingPosition = position.status === 'pending'
   const isOpenPos = position.status === 'open'
-  const canAct = (isPendingPosition || isOpenPos) && !isDemoMode
+  const isUnwindingPos = position.status === 'unwinding'
+  const canAct = (isPendingPosition || isOpenPos) && !isUnwindingPos && !isDemoMode
 
   const isBusy = cancelMutation.isPending || isCloseSigning || isCloseConfirming
   const actionError: unknown = isPendingPosition
@@ -310,7 +311,7 @@ function OpenPositionDetail({
     }
   }
 
-  const isInFlight = position.status === 'pending' || position.status === 'closing' || position.status === 'settling'
+  const isInFlight = position.status === 'pending' || position.status === 'closing' || position.status === 'settling' || isUnwindingPos
   const statusLabel = position.status === 'pending' ? 'created' : position.status
 
   return (
@@ -332,16 +333,19 @@ function OpenPositionDetail({
               label={statusLabel}
               color={
                 position.status === 'open' ? 'var(--green)'
+                  : isUnwindingPos ? '#5B9CF5'
                   : isInFlight ? '#F5A623'
                   : 'var(--text-muted)'
               }
               bg={
                 position.status === 'open' ? 'var(--green-soft)'
+                  : isUnwindingPos ? 'rgba(91,156,245,0.08)'
                   : isInFlight ? 'rgba(245,166,35,0.08)'
                   : 'rgba(136,136,136,0.08)'
               }
               borderColor={
                 position.status === 'open' ? 'rgba(68,255,151,0.2)'
+                  : isUnwindingPos ? 'rgba(91,156,245,0.2)'
                   : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
               }
@@ -351,6 +355,28 @@ function OpenPositionDetail({
       />
 
       <div style={{ padding: '0 24px 24px' }}>
+        {isUnwindingPos && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              background: 'rgba(91,156,245,0.06)',
+              border: '1px solid rgba(91,156,245,0.18)',
+              borderRadius: 0,
+              padding: '10px 12px',
+              marginBottom: 14,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5B9CF5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span style={{ fontSize: 12, color: '#5B9CF5', lineHeight: 1.4 }}>
+              Deleveraging in progress.
+            </span>
+          </div>
+        )}
+
         {isFullyDeleveraged && (
           <div
             style={{

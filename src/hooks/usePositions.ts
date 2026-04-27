@@ -24,7 +24,7 @@ export function usePositions(params?: UsePositionsParams) {
     enabled: !!jwt,
     refetchInterval: (query) => {
       const data = query.state.data as Position[] | undefined;
-      if (data?.some((p) => p.status === 'pending' || p.status === 'closing' || p.status === 'settling')) return FAST_POLL_MS;
+      if (data?.some((p) => p.status === 'pending' || p.status === 'closing' || p.status === 'settling' || p.status === 'unwinding')) return FAST_POLL_MS;
       return SLOW_POLL_MS;
     },
   });

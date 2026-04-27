@@ -26,7 +26,8 @@ export function PositionCard({
   const isClosingPosition = position.status === 'closing'
   const isSettlingPosition = position.status === 'settling'
   const isPendingPosition = position.status === 'pending'
-  const isInFlight = isPendingPosition || isClosingPosition || isSettlingPosition
+  const isUnwindingPosition = position.status === 'unwinding'
+  const isInFlight = isPendingPosition || isClosingPosition || isSettlingPosition || isUnwindingPosition
 
   const isYes = position.side === 'yes'
   const pnlValue = parseFloat(position.current.unrealizedPnlUsd)
@@ -83,8 +84,8 @@ export function PositionCard({
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              background: 'rgba(245,166,35,0.08)',
-              border: '1px solid rgba(245,166,35,0.22)',
+              background: isUnwindingPosition ? 'rgba(91,156,245,0.08)' : 'rgba(245,166,35,0.08)',
+              border: `1px solid ${isUnwindingPosition ? 'rgba(91,156,245,0.22)' : 'rgba(245,166,35,0.22)'}`,
               borderRadius: 0,
               padding: '10px 12px',
               marginBottom: 16,
@@ -97,21 +98,25 @@ export function PositionCard({
                 width: 8,
                 height: 8,
                 borderRadius: '50%',
-                background: '#F5A623',
+                background: isUnwindingPosition ? '#5B9CF5' : '#F5A623',
                 animation: 'pendingPulse 1.1s ease-in-out infinite',
                 flexShrink: 0,
               }}
             />
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 12, color: '#F5A623', fontWeight: 600 }}>
-                {isClosingPosition
+              <div style={{ fontSize: 12, color: isUnwindingPosition ? '#5B9CF5' : '#F5A623', fontWeight: 600 }}>
+                {isUnwindingPosition
+                  ? 'Reducing leverage'
+                  : isClosingPosition
                   ? 'Closing position'
                   : isSettlingPosition
                   ? 'Settling position'
                   : 'Opening position'}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                {isClosingPosition
+                {isUnwindingPosition
+                  ? 'Deleveraging in progress…'
+                  : isClosingPosition
                   ? 'Awaiting on-chain confirmation on Polygon…'
                   : isSettlingPosition
                   ? 'Market resolved — awaiting on-chain settlement…'
@@ -125,7 +130,7 @@ export function PositionCard({
                 left: 0,
                 right: 0,
                 height: 2,
-                background: 'rgba(245,166,35,0.15)',
+                background: isUnwindingPosition ? 'rgba(91,156,245,0.15)' : 'rgba(245,166,35,0.15)',
                 overflow: 'hidden',
               }}
             >
@@ -133,7 +138,7 @@ export function PositionCard({
                 style={{
                   height: '100%',
                   width: '40%',
-                  background: '#F5A623',
+                  background: isUnwindingPosition ? '#5B9CF5' : '#F5A623',
                   animation: 'pendingSlide 1.6s ease-in-out infinite',
                 }}
               />
@@ -219,13 +224,16 @@ export function PositionCard({
                 fontSize: 11,
                 fontWeight: 600,
                 color: position.status === 'open' ? 'var(--green)'
+                  : isUnwindingPosition ? '#5B9CF5'
                   : isInFlight ? '#F5A623'
                   : 'var(--text-muted)',
                 background: position.status === 'open' ? 'var(--green-soft)'
+                  : isUnwindingPosition ? 'rgba(91,156,245,0.08)'
                   : isInFlight ? 'rgba(245,166,35,0.08)'
                   : 'rgba(136,136,136,0.08)',
                 border: `1px solid ${
                   position.status === 'open' ? 'rgba(68,255,151,0.2)'
+                  : isUnwindingPosition ? 'rgba(91,156,245,0.2)'
                   : isInFlight ? 'rgba(245,166,35,0.2)'
                   : 'rgba(136,136,136,0.2)'
                 }`,

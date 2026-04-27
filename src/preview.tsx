@@ -166,6 +166,20 @@ const mockOpenPosition: OpenPosition = {
   },
 }
 
+const mockUnwindingPosition: OpenPosition = {
+  ...mockOpenPosition,
+  id: 'dm_pos_unwind',
+  status: 'unwinding',
+  current: {
+    ...mockOpenPosition.current,
+    leverageBps: 48000,
+    unrealizedPnlUsd: '-2.10',
+    unrealizedPnlBps: -420,
+    positionValueUsd: '7.90',
+    positionValueUsdPips: '79000',
+  },
+}
+
 const mockClosedPosition: ClosedPosition = {
   id: 'dm_pos_2',
   marketTicker: 'ETH-MERGE-V2',
@@ -256,6 +270,12 @@ export default function Preview() {
         <h2 style={{ fontSize: 14, fontWeight: 600, color: '#e8e8e8', marginBottom: 12 }}>Active Position</h2>
         <div style={{ maxWidth: 480, marginBottom: 40 }}>
           <PositionCard position={mockOpenPosition} />
+        </div>
+
+        {/* Unwinding Position */}
+        <h2 style={{ fontSize: 14, fontWeight: 600, color: '#e8e8e8', marginBottom: 12 }}>Unwinding Position</h2>
+        <div style={{ maxWidth: 480, marginBottom: 40 }}>
+          <PositionCard position={mockUnwindingPosition} />
         </div>
 
         {/* Settled Position */}
