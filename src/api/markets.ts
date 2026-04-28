@@ -20,17 +20,16 @@ export interface FetchMarketsResult {
   totalCount?: number;
 }
 
-/** Fetch a single page of markets */
 export async function fetchMarkets(params?: FetchMarketsParams): Promise<FetchMarketsResult> {
   const searchParams = new URLSearchParams();
   if (params?.category) searchParams.set('category', params.category);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.acceptingNewPositions !== undefined) searchParams.set('accepting_new_positions', String(params.acceptingNewPositions));
-  if (params?.sort) searchParams.set('sort', params.sort);
   if (params?.limit) searchParams.set('limit', String(params.limit));
   if (params?.startingAfter) searchParams.set('starting_after', params.startingAfter);
   if (params?.endingBefore) searchParams.set('ending_before', params.endingBefore);
   if (params?.expand) params.expand.forEach((e) => searchParams.append('expand', e));
+  searchParams.set('sort', params?.sort ?? 'depth_desc');
   const qs = searchParams.toString();
   return apiFetchListWithPagination<Market>(`/v1/prediction-markets/markets${qs ? `?${qs}` : ''}`);
 }
