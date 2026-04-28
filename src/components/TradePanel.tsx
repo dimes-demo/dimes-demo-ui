@@ -4,7 +4,6 @@ import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
 import { leverageMaxBps } from '../api/types'
 import { useOffer } from '../hooks/useOffer'
-import { useMarketOdds } from '../hooks/useMarketOdds'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -280,13 +279,10 @@ export function TradePanel({
     ? market.ticker
     : market.title || market.ticker
 
-  const odds = useMarketOdds(
-    market.ticker,
-    market.acceptingNewPositions,
-    market.leverage.minBps,
-  )
-  const formatCents = (p: number) =>
-    p < 0.1 ? `${(p * 100).toFixed(1)}¢` : `${Math.round(p * 100)}¢`
+  const formatCents = (usd: string) => {
+    const p = Number(usd)
+    return p < 0.1 ? `${(p * 100).toFixed(1)}¢` : `${Math.round(p * 100)}¢`
+  }
 
   return (
     <CardShell variant="yellow" className="trade-panel-card-shell">
@@ -361,14 +357,14 @@ export function TradePanel({
         >
           <SideButton
             label="YES"
-            sub={odds ? formatCents(odds.yes) : market.yesSubTitle}
+            sub={market.prices ? formatCents(market.prices.yesBidPriceUsd) : market.yesSubTitle}
             variant="yes"
             active={side === 'yes'}
             onClick={() => { setSide('yes'); clearOffer(); }}
           />
           <SideButton
             label="NO"
-            sub={odds ? formatCents(odds.no) : null}
+            sub={market.prices ? formatCents(market.prices.noBidPriceUsd) : null}
             variant="no"
             active={side === 'no'}
             onClick={() => { setSide('no'); clearOffer(); }}

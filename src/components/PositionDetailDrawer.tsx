@@ -11,7 +11,6 @@ import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
-import { useMarket } from '../hooks/useMarketTitle'
 import { formatSlippageBps } from '../utils/format'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
@@ -73,13 +72,13 @@ export function PositionDetailDrawer({
 
 function DrawerHeader({
   title,
-  marketId,
+  marketTicker,
   positionId,
   onClose,
   badges,
 }: {
   title: string
-  marketId?: string | null
+  marketTicker: string
   positionId?: string
   onClose: () => void
   badges: React.ReactNode
@@ -103,29 +102,27 @@ function DrawerHeader({
       >
         <div style={{ minWidth: 0, flex: '1 1 auto' }}>
           <div
-            onClick={() => marketId && copy(marketId, 'marketId')}
+            onClick={() => copy(marketTicker, 'ticker')}
             title={
-              copiedKey === 'marketId'
-                ? 'Market ID copied'
-                : marketId
-                  ? `${title} — click to copy market ID`
-                  : title
+              copiedKey === 'ticker'
+                ? 'Ticker copied'
+                : `${title} — click to copy ticker`
             }
             style={{
               fontSize: 15,
               fontWeight: 600,
-              color: copiedKey === 'marketId' ? 'var(--green)' : '#ffffff',
+              color: copiedKey === 'ticker' ? 'var(--green)' : '#ffffff',
               lineHeight: 1.3,
               overflow: 'hidden',
               display: '-webkit-box',
               WebkitLineClamp: 3,
               WebkitBoxOrient: 'vertical',
               textOverflow: 'ellipsis',
-              cursor: marketId ? 'pointer' : 'default',
+              cursor: 'pointer',
               transition: 'color 0.2s',
             }}
           >
-            {copiedKey === 'marketId' ? '✓ Market ID copied' : title}
+            {copiedKey === 'ticker' ? '✓ Ticker copied' : title}
           </div>
           {positionId && (
             <PositionIdRow
@@ -217,8 +214,7 @@ function OpenPositionDetail({
     reset: resetClose,
   } = useRequestClose()
 
-  const market = useMarket(position.marketTicker)
-  const displayTitle = market?.title || position.marketTicker
+  const displayTitle = position.marketTitle || position.marketTicker
   const isYes = position.side === 'yes'
 
   useEffect(() => {
@@ -319,7 +315,7 @@ function OpenPositionDetail({
     <div>
       <DrawerHeader
         title={displayTitle}
-        marketId={market?.id}
+        marketTicker={position.marketTicker}
         positionId={position.id}
         onClose={onClose}
         badges={
@@ -606,8 +602,7 @@ function ClosedPositionDetail({
   isUnwindsLoading?: boolean
   onClose: () => void
 }) {
-  const market = useMarket(position.marketTicker)
-  const displayTitle = market?.title || position.marketTicker
+  const displayTitle = position.marketTitle || position.marketTicker
 
   const realizedPnl = parseFloat(position.result.realizedPnlUsd)
   const pnlColor = realizedPnl >= 0 ? 'var(--green)' : 'var(--red)'
@@ -641,7 +636,7 @@ function ClosedPositionDetail({
     <div>
       <DrawerHeader
         title={displayTitle}
-        marketId={market?.id}
+        marketTicker={position.marketTicker}
         positionId={position.id}
         onClose={onClose}
         badges={

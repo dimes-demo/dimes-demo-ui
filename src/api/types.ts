@@ -24,6 +24,17 @@ export interface MarketFees {
   originationTiers: OriginationTier[];
 }
 
+export interface MarketPrices {
+  yesAskPriceUsd: string;
+  yesAskPriceUsdPips: string;
+  yesBidPriceUsd: string;
+  yesBidPriceUsdPips: string;
+  noAskPriceUsd: string;
+  noAskPriceUsdPips: string;
+  noBidPriceUsd: string;
+  noBidPriceUsdPips: string;
+}
+
 export interface Market {
   id: string;
   ticker: string;
@@ -45,6 +56,7 @@ export interface Market {
   maxNotionalNoUsd: string | null;
   leverage: MarketLeverage;
   fees: MarketFees;
+  prices?: MarketPrices | null;
 }
 
 // ── Offer types ──
@@ -195,6 +207,7 @@ export interface PositionClosedFees {
 export interface PositionBase {
   id: string;
   marketTicker: string;
+  marketTitle: string | null;
   side: string;
   status: string;
   walletAddress: string;

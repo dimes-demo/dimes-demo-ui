@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { ClosedPosition } from '../api/types'
-import { useMarket } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 import { MicroStat, PnlHero } from './CardViewParts'
 import { PositionIdRow } from './PositionCard'
@@ -23,8 +22,7 @@ export function SettledCard({
   isSelected?: boolean
 }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
-  const market = useMarket(position.marketTicker)
-  const displayTitle = market?.title || position.marketTicker
+  const displayTitle = position.marketTitle || position.marketTicker
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value)
@@ -63,30 +61,28 @@ export function SettledCard({
             <div
               onClick={(e) => {
                 e.stopPropagation()
-                if (market?.id) copyToClipboard(market.id, 'marketId')
+                copyToClipboard(position.marketTicker, 'marketTicker')
               }}
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: copiedKey === 'marketId' ? 'var(--green)' : '#ffffff',
+                color: copiedKey === 'marketTicker' ? 'var(--green)' : '#ffffff',
                 overflow: 'hidden',
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 textOverflow: 'ellipsis',
-                cursor: market?.id ? 'pointer' : 'default',
+                cursor: 'pointer',
                 transition: 'color 0.2s',
                 lineHeight: 1.3,
               }}
               title={
-                copiedKey === 'marketId'
-                  ? 'Market ID copied'
-                  : market?.id
-                    ? `${displayTitle} — click to copy market ID`
-                    : displayTitle
+                copiedKey === 'marketTicker'
+                  ? 'Ticker copied'
+                  : `${displayTitle} — click to copy ticker`
               }
             >
-              {copiedKey === 'marketId' ? '✓ Market ID copied' : displayTitle}
+              {copiedKey === 'marketTicker' ? '✓ Ticker copied' : displayTitle}
             </div>
             <PositionIdRow
               positionId={position.id}

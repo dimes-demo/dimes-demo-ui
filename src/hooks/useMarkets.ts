@@ -41,7 +41,7 @@ export function useMarkets(
         sort,
         limit: PAGE_SIZE,
         startingAfter,
-        expand: ['total_count'],
+        expand: ['total_count', 'prices'],
       });
     },
     enabled: !!jwt,
