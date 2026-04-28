@@ -92,6 +92,26 @@ const friendlyByErrorName: Record<string, Formatter> = {
   ERC20InsufficientAllowance: () => 'Insufficient USDC allowance. Approve and try again.',
 };
 
+// Standard ERC-20 / ERC-1155 error selectors that viem can't decode (not in vault ABI).
+// Selector = keccak256(signature).slice(0, 10).
+const friendlyBySelector: Record<string, string> = {
+  // ERC-20 (Solidity 0.8.20+ custom errors)
+  '0xe450d38c': 'Insufficient USDC balance.',                      // ERC20InsufficientBalance(address,uint256,uint256)
+  '0xfb8f41b2': 'Insufficient USDC allowance. Approve and try again.', // ERC20InsufficientAllowance(address,uint256,uint256)
+  '0x96c6fd1e': 'Invalid token sender (zero address).',            // ERC20InvalidSender(address)
+  '0xec442f05': 'Invalid token receiver (zero address).',          // ERC20InvalidReceiver(address)
+  '0xe602df05': 'Invalid token approver (zero address).',          // ERC20InvalidApprover(address)
+  '0x94280d62': 'Invalid spender (zero address).',                 // ERC20InvalidSpender(address)
+  // ERC-1155
+  '0x03dee4c5': 'Insufficient token balance for transfer.',        // ERC1155InsufficientBalance(address,uint256,uint256,uint256)
+  '0x01a83514': 'Invalid ERC-1155 sender (zero address).',         // ERC1155InvalidSender(address)
+  '0x57f447ce': 'Invalid ERC-1155 receiver.',                      // ERC1155InvalidReceiver(address)
+  '0xe237d922': 'Missing ERC-1155 approval.',                      // ERC1155MissingApprovalForAll(address,address)
+  '0x3e31884e': 'Invalid ERC-1155 approver (zero address).',       // ERC1155InvalidApprover(address)
+  '0xced3e100': 'Invalid ERC-1155 operator (zero address).',       // ERC1155InvalidOperator(address)
+  '0x5b059991': 'ERC-1155 array length mismatch.',                 // ERC1155InvalidArrayLength(uint256,uint256)
+};
+
 function humanizeName(name: string): string {
   // CamelCase → "Camel Case"
   const spaced = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
@@ -125,8 +145,9 @@ export function formatContractError(err: unknown): FormattedContractError {
       }
       const raw = reverted.raw;
       const selector = raw && raw.length >= 10 ? raw.slice(0, 10) : undefined;
+      const selectorMessage = selector ? friendlyBySelector[selector] : undefined;
       return {
-        message: reverted.shortMessage || 'Contract reverted.',
+        message: selectorMessage ?? reverted.shortMessage ?? 'Contract reverted.',
         code: selector ?? (raw || undefined),
       };
     }

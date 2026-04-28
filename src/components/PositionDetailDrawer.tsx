@@ -229,7 +229,7 @@ function OpenPositionDetail({
   const isVoided = position.timing.isVoided && position.timing.isSettlementPending
   const canAct = (isPendingPosition || isOpenPos) && !isUnwindingPos && !isVoided && !isDemoMode
 
-  const isBusy = cancelMutation.isPending || isCloseSigning || isCloseConfirming
+  const isBusy = cancelMutation.isPending || cancelMutation.isSuccess || isCloseSigning || isCloseConfirming
   const actionError: unknown = isPendingPosition
     ? cancelMutation.error
     : closeSimError ?? closeChainError ?? closeReceiptError
@@ -253,6 +253,7 @@ function OpenPositionDetail({
 
   const buttonLabel = (() => {
     if (cancelMutation.isPending) return 'Cancelling...'
+    if (cancelMutation.isSuccess) return 'Cancel requested'
     if (isCloseSigning) return 'Confirm in wallet...'
     if (isCloseConfirming) return 'Closing...'
     if (isCloseConfirmed) return 'Close requested'
