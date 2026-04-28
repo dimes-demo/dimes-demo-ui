@@ -123,8 +123,12 @@ export function formatContractError(err: unknown): FormattedContractError {
           code: errorName,
         };
       }
-      // Reverted but selector not in ABI — surface the short message.
-      return { message: reverted.shortMessage || 'Contract reverted.' };
+      const raw = reverted.raw;
+      const selector = raw && raw.length >= 10 ? raw.slice(0, 10) : undefined;
+      return {
+        message: reverted.shortMessage || 'Contract reverted.',
+        code: selector ?? (raw || undefined),
+      };
     }
 
     const exec = err.walk((e) => e instanceof ContractFunctionExecutionError) as
