@@ -1,10 +1,13 @@
 import { apiFetch, apiFetchList, apiFetchListWithPagination } from './client';
 import type { Market } from './types';
 
+export type MarketSort = 'ticker_asc' | 'depth_desc';
+
 export interface FetchMarketsParams {
   category?: string;
   status?: string;
   acceptingNewPositions?: boolean;
+  sort?: MarketSort;
   limit?: number;
   startingAfter?: string;
   endingBefore?: string;
@@ -23,6 +26,7 @@ export async function fetchMarkets(params?: FetchMarketsParams): Promise<FetchMa
   if (params?.category) searchParams.set('category', params.category);
   if (params?.status) searchParams.set('status', params.status);
   if (params?.acceptingNewPositions !== undefined) searchParams.set('accepting_new_positions', String(params.acceptingNewPositions));
+  if (params?.sort) searchParams.set('sort', params.sort);
   if (params?.limit) searchParams.set('limit', String(params.limit));
   if (params?.startingAfter) searchParams.set('starting_after', params.startingAfter);
   if (params?.endingBefore) searchParams.set('ending_before', params.endingBefore);

@@ -52,7 +52,7 @@ export function MarketList({
   const [debouncedSearch, setDebouncedSearch] = useState(() => getQueryParam('q') ?? '')
   const [category, setCategoryState] = useState<string | undefined>(() => getQueryParam('category'))
   const [status, setStatusState] = useState<string | undefined>(() => getQueryParam('status'))
-  const [eligible, setEligibleState] = useState<string | undefined>(() => getQueryParam('eligible') ?? 'yes')
+  const [eligible, setEligibleState] = useState<string | undefined>('yes')
   const [copiedTicker, setCopiedTicker] = useState<string | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -91,10 +91,9 @@ export function MarketList({
       q: debouncedSearch || undefined,
       category,
       status,
-      eligible,
       after: cursor,
     })
-  }, [debouncedSearch, category, status, eligible, cursor])
+  }, [debouncedSearch, category, status, cursor])
 
   const acceptingNewPositions = eligible === 'yes' ? true : eligible === 'no' ? false : undefined
 
@@ -104,6 +103,7 @@ export function MarketList({
     status,
     acceptingNewPositions,
     cursor,
+    'depth_desc',
   )
 
   const queryClient = useQueryClient()
