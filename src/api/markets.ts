@@ -1,6 +1,8 @@
 import { apiFetch, apiFetchList, apiFetchListWithPagination } from './client';
 import type { Market } from './types';
 
+export type MarketsSort = 'ticker_asc' | 'depth_desc';
+
 export interface FetchMarketsParams {
   category?: string;
   status?: string;
@@ -9,6 +11,7 @@ export interface FetchMarketsParams {
   startingAfter?: string;
   endingBefore?: string;
   expand?: string[];
+  sort?: MarketsSort;
 }
 
 export interface FetchMarketsResult {
@@ -17,7 +20,9 @@ export interface FetchMarketsResult {
   totalCount?: number;
 }
 
-/** Fetch a single page of markets */
+/** Fetch a single page of markets. Defaults to `depth_desc` so the most
+ *  tradable markets surface first; pass `sort: 'ticker_asc'` for the API's
+ *  alphabetical default. */
 export async function fetchMarkets(params?: FetchMarketsParams): Promise<FetchMarketsResult> {
   const searchParams = new URLSearchParams();
   if (params?.category) searchParams.set('category', params.category);
@@ -27,6 +32,7 @@ export async function fetchMarkets(params?: FetchMarketsParams): Promise<FetchMa
   if (params?.startingAfter) searchParams.set('starting_after', params.startingAfter);
   if (params?.endingBefore) searchParams.set('ending_before', params.endingBefore);
   if (params?.expand) params.expand.forEach((e) => searchParams.append('expand', e));
+  searchParams.set('sort', params?.sort ?? 'depth_desc');
   const qs = searchParams.toString();
   return apiFetchListWithPagination<Market>(`/v1/prediction-markets/markets${qs ? `?${qs}` : ''}`);
 }
