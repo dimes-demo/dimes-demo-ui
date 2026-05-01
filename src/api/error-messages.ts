@@ -263,7 +263,10 @@ const friendlyByCode: Record<string, FriendlyEntry> = {
   quote_entry_capacity_exceeded: 'Entry size exceeds the market’s available capacity.',
   quote_entry_depth_too_low: 'Order book depth is too thin to open this position safely.',
   quote_entry_spread_too_wide: 'Bid/ask spread is too wide to open right now. Try again shortly.',
-  quote_entry_tick_stale: 'Latest market price data is stale. Refresh and try again.',
+  quote_entry_order_book_stale: 'Order book data is stale. Refresh and try again.',
+  quote_entry_price_stale: 'Price data is stale. Refresh and try again.',
+  quote_entry_crypto_price_stale: 'Crypto price data is stale. Refresh and try again.',
+  quote_entry_sport_data_stale: 'Sport event data is stale. Refresh and try again.',
   quote_entry_volume_too_low: 'Recent traded volume on this market is too low to open new positions.',
   quote_entry_top_holder_too_high: (params) => {
     const current = bpsToPct(get(params, 'currentTopHolderBps'));
@@ -308,9 +311,10 @@ const friendlyByCode: Record<string, FriendlyEntry> = {
   },
   quote_leverage_too_high_for_price: (params) => {
     const current = bpsToLeverage(get(params, 'currentLeverageBps'));
-    return current
-      ? `Leverage ${current} is too high for the current price. Reduce leverage.`
-      : 'Leverage is too high for the current price. Reduce leverage.';
+    const max = bpsToLeverage(get(params, 'maxAcceptableLeverageBps'));
+    if (current && max) return `Leverage ${current} is too high for the current price. Maximum is ${max}.`;
+    if (current) return `Leverage ${current} is too high for the current price. Reduce leverage.`;
+    return 'Leverage is too high for the current price. Reduce leverage.';
   },
   quote_hard_exit_too_close: 'Hard-exit is too close to entry. Reduce leverage.',
   quote_liquidation_not_viable: (params) => {

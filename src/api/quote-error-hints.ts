@@ -93,8 +93,11 @@ export function quoteErrorHint(
       return { kind: 'clamp-leverage', maxLeverageBps };
     }
 
-    case 'quote_leverage_too_high_for_price':
-      return { kind: 'clamp-leverage' };
+    case 'quote_leverage_too_high_for_price': {
+      const maxLeverageBps = num(params, 'maxAcceptableLeverageBps');
+      if (maxLeverageBps === null) return null;
+      return { kind: 'clamp-leverage', maxLeverageBps };
+    }
 
     case 'quote_leverage_below_minimum': {
       const minLeverageBps = num(params, 'minLeverageBps');

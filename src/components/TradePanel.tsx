@@ -12,6 +12,7 @@ import {
   useCreatePosition,
   USDC_ADDRESS,
 } from '../contract/hooks'
+import { isDemoMode } from '../api/auth'
 import { ApiError } from '../api/client'
 import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
 import { maxViableLeverageBps } from '../utils/capacity'
@@ -554,7 +555,25 @@ export function TradePanel({
 
         {offer && <QuoteDetails offer={offer} hideExpiry={createSuccess} />}
 
-        {offer && !createSuccess && (
+        {offer && !createSuccess && isDemoMode && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '12px 16px',
+              borderRadius: 'var(--radius)',
+              background: 'rgba(238,255,0,0.08)',
+              border: '1px solid rgba(238,255,0,0.25)',
+              color: 'var(--yellow)',
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 500,
+              textAlign: 'center',
+            }}
+          >
+            Demo mode — positions are read-only. Set a <code style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.9em' }}>VITE_API_KEY</code> to trade.
+          </div>
+        )}
+
+        {offer && !createSuccess && !isDemoMode && (
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             {!canCreate && (
               <Button

@@ -13,6 +13,7 @@ const CREATE_POSITION_TYPES = {
     { name: 'originationFeeBps', type: 'uint16' },
     { name: 'lifetimeFeeAprBps', type: 'uint16' },
     { name: 'liquidationFeeBps', type: 'uint16' },
+    { name: 'venueFeeUsdcUnits', type: 'uint256' },
     { name: 'signatureExpiry', type: 'uint256' },
   ],
 } as const;
@@ -41,6 +42,7 @@ export async function recoverCreatePositionSigner(
       originationFeeBps: offer.originationFeeBps,
       lifetimeFeeAprBps: offer.lifetimeFeeAprBps,
       liquidationFeeBps: offer.liquidationFeeBps,
+      venueFeeUsdcUnits: BigInt(offer.expectedOpenTradingFeeUsdcUnits),
       signatureExpiry: BigInt(offer.signatureExpiry),
     },
     signature: offer.contractSignature as `0x${string}`,

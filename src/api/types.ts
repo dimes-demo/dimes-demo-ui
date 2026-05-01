@@ -73,6 +73,7 @@ export interface Offer {
   entryPriceUsdPips: string;
   evmChainId: string;
   expectedOpenTradingFeeUsd: string;
+  expectedOpenTradingFeeUsdcUnits: string;
   expectedOpenTradingFeeUsdPips: string;
   expiresAt: string;
   leverageBps: number;

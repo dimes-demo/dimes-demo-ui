@@ -151,6 +151,7 @@ export function useCreatePosition() {
         offer.originationFeeBps,
         offer.lifetimeFeeAprBps,
         offer.liquidationFeeBps,
+        BigInt(offer.expectedOpenTradingFeeUsdcUnits),
         offer.contractSignature as `0x${string}`,
         BigInt(offer.signatureExpiry),
       ] as const,
