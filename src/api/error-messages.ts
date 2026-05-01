@@ -268,12 +268,7 @@ const friendlyByCode: Record<string, FriendlyEntry> = {
   quote_entry_crypto_price_stale: 'Crypto price data is stale. Refresh and try again.',
   quote_entry_sport_data_stale: 'Sport event data is stale. Refresh and try again.',
   quote_entry_volume_too_low: 'Recent traded volume on this market is too low to open new positions.',
-  quote_entry_top_holder_too_high: (params) => {
-    const current = bpsToPct(get(params, 'currentTopHolderBps'));
-    const max = bpsToPct(get(params, 'maxTopHolderBps'));
-    if (current && max) return `Top holder owns ${current} of this market (max ${max}). Opening here is restricted.`;
-    return 'A single trader holds too much of this market. Opening here is restricted.';
-  },
+  quote_entry_top_holder_too_high: 'A single trader holds too much of this market. Opening here is restricted.',
   quote_entry_price_out_of_range: 'Current price is outside the range we can open at. Try again shortly.',
   quote_entry_exit_drop_too_high: 'Exit liquidity is too thin to safely open this size.',
   quote_entry_market_too_elapsed: (params) => {
@@ -344,6 +339,9 @@ const friendlyByCode: Record<string, FriendlyEntry> = {
 
   // ─── Kalshi ────────────────────────────────────────────────────────────
   kalshi_quote_market_closed: 'This Kalshi market is closed.',
+
+  // ─── Quote — draft promotion ───────────────────────────────────────────
+  quote_draft_not_found: 'This quote has expired or does not exist. Please request a new quote.',
 
   // ─── Quote — data freshness ────────────────────────────────────────────
   quote_twap_data_stale: 'Reference price (TWAP) is stale. Try again shortly.',

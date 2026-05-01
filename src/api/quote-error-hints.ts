@@ -13,6 +13,16 @@ import { bpsToMultiplier, formatUsd } from '../utils/format';
 const PIPS_PER_USD = 10_000;
 const BPS_PER_UNIT = 10_000;
 
+export const MARKET_MOVED_CODES = new Set([
+  'quote_slippage_too_high',
+  'quote_insufficient_liquidity',
+  'quote_entry_price_out_of_range',
+  'quote_entry_bid_depth_too_low',
+  'quote_entry_depth_too_low',
+  'quote_entry_spread_too_wide',
+  'quote_side_capacity_exceeded',
+]);
+
 export type QuoteHint =
   | { kind: 'use-max-collateral'; maxCollateralUsd: number; minCollateralUsd: number }
   | { kind: 'clamp-leverage'; maxLeverageBps?: number }

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
 import { leverageMaxBps } from '../api/types'
-import { useOffer } from '../hooks/useOffer'
+import { useTradeMachine } from '../hooks/useTradeMachine'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -77,7 +77,27 @@ export function TradePanel({
     query: { enabled: !!address },
   })
 
-  const { offer, isLoading: offerLoading, error: offerError, getQuote, clearOffer } = useOffer()
+  const { state: tradeState, getDraft, promote, acceptChanges, reset: resetTrade } = useTradeMachine()
+
+  const draft = tradeState.phase === 'draft-ready' ? tradeState.draft
+    : tradeState.phase === 'promoting' ? tradeState.draft
+    : tradeState.phase === 'promoted' ? tradeState.draft
+    : tradeState.phase === 'market-moved' ? tradeState.newDraft
+    : tradeState.phase === 'error' ? tradeState.draft
+    : null
+
+  const promotedOffer = tradeState.phase === 'promoted' ? tradeState.promotedOffer : null
+
+  const quotedAt = (tradeState.phase === 'draft-ready' || tradeState.phase === 'promoting'
+    || tradeState.phase === 'promoted' || tradeState.phase === 'market-moved')
+    ? tradeState.quotedAt : undefined
+
+  const offerLoading = tradeState.phase === 'loading-draft'
+  const offerError = tradeState.phase === 'error' ? tradeState.error : null
+  const isPromoting = tradeState.phase === 'promoting'
+  const isMarketMoved = tradeState.phase === 'market-moved'
+
+  const clearOffer = resetTrade
   const {
     approve,
     isPending: approvePending,
@@ -101,10 +121,10 @@ export function TradePanel({
   } = useCreatePosition()
   const { allowance, refetch: refetchAllowance } = useCheckAllowance(
     address,
-    offer?.polygonVaultContractAddress as `0x${string}` | undefined,
+    draft?.polygonVaultContractAddress as `0x${string}` | undefined,
   )
 
-  const requiredApproval = offer ? BigInt(offer.totalUserAmountUsdcUnits) : 0n
+  const requiredApproval = draft ? BigInt(draft.totalUserAmountUsdcUnits) : 0n
   const hasAllowance = allowance !== undefined && allowance >= requiredApproval && requiredApproval > 0n
   const canCreate = hasAllowance || approveSuccess
 
@@ -116,7 +136,7 @@ export function TradePanel({
     }
   }, [createSuccess, queryClient])
 
-  const stubKey = offer?.onChainPositionKey
+  const stubKey = promotedOffer?.onChainPositionKey
   useEffect(() => {
     if (!stubKey) return
     if (createWriteError || verifyError || createReceiptError) {
@@ -124,17 +144,41 @@ export function TradePanel({
     }
   }, [stubKey, createWriteError, verifyError, createReceiptError, removePendingStub])
 
+  // Track promoted offer expiry — the 15s matters while the wallet is open
   const [isOfferExpired, setIsOfferExpired] = useState(false)
   useEffect(() => {
-    if (!offer) {
+    if (!promotedOffer) {
       setIsOfferExpired(false)
       return
     }
-    const check = () => setIsOfferExpired(new Date(offer.expiresAt).getTime() <= Date.now())
+    const check = () => setIsOfferExpired(new Date(promotedOffer.expiresAt).getTime() <= Date.now())
     check()
     const interval = setInterval(check, 500)
     return () => clearInterval(interval)
-  }, [offer])
+  }, [promotedOffer])
+
+  const walletOpen = !!(promotedOffer && (createPending || createConfirming))
+
+  // Trigger wallet signing as soon as promotion succeeds
+  const prevPromotedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!promotedOffer) return
+    if (prevPromotedRef.current === promotedOffer.id) return
+    prevPromotedRef.current = promotedOffer.id
+    if (promotedOffer.onChainPositionKey) {
+      addPendingStub({
+        key: promotedOffer.onChainPositionKey,
+        marketTicker: promotedOffer.marketTicker,
+        side: promotedOffer.effectiveSide === 'no' ? 'no' : 'yes',
+        leverageBps: promotedOffer.leverageBps,
+        collateralUsd: promotedOffer.notionalAmountUsd
+          ? (Number(promotedOffer.notionalAmountUsd) / (promotedOffer.leverageBps / 10000)).toFixed(2)
+          : collateralUsd,
+        createdAt: Date.now(),
+      })
+    }
+    create(promotedOffer)
+  }, [promotedOffer])
 
   const updateCollateral = (next: string) => {
     setCollateralUsd(next)
@@ -154,7 +198,7 @@ export function TradePanel({
 
   const handleGetQuote = () => {
     if (!canGetQuote) return
-    getQuote({
+    getDraft({
       marketTicker: market.ticker,
       effectiveSide: side,
       leverageBps,
@@ -251,29 +295,22 @@ export function TradePanel({
       : (slippageBps / 100).toString()
 
   const handleApprove = async () => {
-    if (!offer) return
+    if (!draft) return
     await approve(
-      offer.polygonVaultContractAddress,
+      draft.polygonVaultContractAddress,
       2n ** 256n - 1n,
     )
     refetchAllowance()
   }
 
   const handleCreate = () => {
-    if (!offer) return
-    if (offer.onChainPositionKey) {
-      addPendingStub({
-        key: offer.onChainPositionKey,
-        marketTicker: offer.marketTicker,
-        side: offer.effectiveSide === 'no' ? 'no' : 'yes',
-        leverageBps: offer.leverageBps,
-        collateralUsd: offer.notionalAmountUsd
-          ? (Number(offer.notionalAmountUsd) / (offer.leverageBps / 10000)).toFixed(2)
-          : collateralUsd,
-        createdAt: Date.now(),
-      })
-    }
-    create(offer)
+    if (!draft) return
+    promote(draft)
+  }
+
+  const handleAcceptChanges = () => {
+    if (tradeState.phase !== 'market-moved') return
+    acceptChanges(tradeState.newDraft, tradeState.retryCount)
   }
 
   const headlineText = showTicker
@@ -551,11 +588,46 @@ export function TradePanel({
           onDismiss={resetApprove}
         />
 
-        {offerLoading && !offer && <QuoteSkeleton />}
+        {offerLoading && !draft && <QuoteSkeleton />}
 
-        {offer && <QuoteDetails offer={offer} hideExpiry={createSuccess} />}
+        {draft && (
+          <QuoteDetails
+            offer={walletOpen ? promotedOffer! : draft}
+            hideExpiry={!walletOpen}
+            previousOffer={isMarketMoved ? tradeState.originalDraft : undefined}
+            quotedAt={quotedAt}
+            onRefresh={handleGetQuote}
+          />
+        )}
 
-        {offer && !createSuccess && isDemoMode && (
+        {isMarketMoved && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '12px 16px',
+              borderRadius: 'var(--radius)',
+              background: 'rgba(245, 166, 35, 0.08)',
+              border: '1px solid rgba(245, 166, 35, 0.25)',
+              color: '#F5A623',
+              fontSize: 'var(--fs-sm)',
+              fontWeight: 500,
+            }}
+          >
+            <div style={{ marginBottom: 8 }}>
+              Market conditions changed — review the updated numbers above.
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button variant="primary" onClick={handleAcceptChanges}>
+                Accept Changes
+              </Button>
+              <Button variant="ghost" onClick={resetTrade}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {draft && !createSuccess && isDemoMode && (
           <div
             style={{
               marginTop: 12,
@@ -573,14 +645,14 @@ export function TradePanel({
           </div>
         )}
 
-        {offer && !createSuccess && !isDemoMode && (
+        {draft && !createSuccess && !isDemoMode && !isMarketMoved && (
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             {!canCreate && (
               <Button
                 variant="ghost"
                 fullWidth
                 onClick={handleApprove}
-                disabled={approvePending || approveConfirming || isOfferExpired}
+                disabled={approvePending || approveConfirming}
               >
                 {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
               </Button>
@@ -589,15 +661,17 @@ export function TradePanel({
               variant="primary"
               fullWidth
               onClick={handleCreate}
-              disabled={!canCreate || createPending || createConfirming || isOfferExpired}
+              disabled={!canCreate || isPromoting || createPending || createConfirming || (walletOpen && isOfferExpired)}
             >
-              {isOfferExpired
+              {walletOpen && isOfferExpired
                 ? 'Quote expired'
                 : createConfirming
                   ? 'Confirming…'
                   : createPending
-                    ? 'Creating…'
-                    : 'Create position'}
+                    ? 'Confirm in wallet…'
+                    : isPromoting
+                      ? 'Creating…'
+                      : 'Create position'}
             </Button>
           </div>
         )}
