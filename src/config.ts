@@ -37,7 +37,10 @@ const connectors = connectorsForWallets(
 export const config = createConfig({
   connectors,
   chains: [chain],
+  pollingInterval: 30_000,
   transports: {
-    [chain.id]: http(import.meta.env.VITE_RPC_URL || undefined),
+    [chain.id]: http(import.meta.env.VITE_RPC_URL || undefined, {
+      batch: true,
+    }),
   } as Record<number, ReturnType<typeof http>>,
 })

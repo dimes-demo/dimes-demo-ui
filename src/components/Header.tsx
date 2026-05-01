@@ -110,7 +110,7 @@ function UsdcBalance() {
   const { data } = useBalance({
     address,
     token: USDC_ADDRESS,
-    query: { enabled: !!address && !!USDC_ADDRESS, refetchInterval: 15_000 },
+    query: { enabled: !!address && !!USDC_ADDRESS },
   })
 
   if (!data) return null
