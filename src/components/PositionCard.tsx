@@ -321,8 +321,8 @@ export function PositionCard({
             <>
               <MicroStat
                 label="Liquidation price"
-                value={`$${position.risk.currentLiquidationPriceUsd}`}
-                valueColor="#F5A623"
+                value={isFullyDeleveraged ? '—' : `$${position.risk.currentLiquidationPriceUsd}`}
+                valueColor={isFullyDeleveraged ? 'var(--text-muted)' : '#F5A623'}
               />
               <MicroStat
                 label="Distance to liquidation"

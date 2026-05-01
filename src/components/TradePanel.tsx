@@ -124,6 +124,15 @@ export function TradePanel({
     }
   }, [stubKey, createWriteError, verifyError, createReceiptError, removePendingStub])
 
+  // After a create-side failure the offer's signature/seed may be unusable for
+  // a retry; auto-clear it so the user lands back on Get Quote and can retry
+  // with one click. The error banner stays visible (errors live on the hooks).
+  useEffect(() => {
+    if (verifyError || createWriteError || createReceiptError) {
+      clearOffer()
+    }
+  }, [verifyError, createWriteError, createReceiptError, clearOffer])
+
   const [isOfferExpired, setIsOfferExpired] = useState(false)
   useEffect(() => {
     if (!offer) {
@@ -559,32 +568,47 @@ export function TradePanel({
         {offer && <QuoteDetails offer={offer} hideExpiry={createSuccess} />}
 
         {offer && !createSuccess && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            {!canCreate && (
+          isOfferExpired ? (
+            <div style={{ marginTop: 12 }}>
               <Button
-                variant="ghost"
+                variant="primary"
                 fullWidth
-                onClick={handleApprove}
-                disabled={approvePending || approveConfirming || isOfferExpired}
+                onClick={() => {
+                  clearOffer()
+                  resetCreate()
+                  resetApprove()
+                  handleGetQuote()
+                }}
               >
-                {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
+                Quote expired — re-quote
               </Button>
-            )}
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleCreate}
-              disabled={!canCreate || createPending || createConfirming || isOfferExpired}
-            >
-              {isOfferExpired
-                ? 'Quote expired'
-                : createConfirming
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              {!canCreate && (
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  onClick={handleApprove}
+                  disabled={approvePending || approveConfirming}
+                >
+                  {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleCreate}
+                disabled={!canCreate || createPending || createConfirming}
+              >
+                {createConfirming
                   ? 'Confirming…'
                   : createPending
                     ? 'Creating…'
                     : 'Create position'}
-            </Button>
-          </div>
+              </Button>
+            </div>
+          )
         )}
 
         {createSuccess && (

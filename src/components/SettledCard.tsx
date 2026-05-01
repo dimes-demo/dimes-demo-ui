@@ -42,6 +42,9 @@ export function SettledCard({
   const isLiquidated = position.closeReason === 'liquidated'
   const isReverted = position.closeReason === 'reverted'
 
+  const filledPrice = position.entry.effectiveEntryPriceUsd
+  const entryNotional = parseFloat(position.entry.notionalUsd)
+
   return (
     <CardShell
       variant="settled"
@@ -137,11 +140,28 @@ export function SettledCard({
         >
           <MicroStat label="Entry price" value={`$${position.entry.priceUsd}`} />
           <MicroStat
+            label="Filled price"
+            value={filledPrice ? `$${filledPrice}` : '—'}
+            valueColor={filledPrice ? undefined : 'var(--text-muted)'}
+          />
+          <MicroStat
+            label="Entry notional"
+            value={`$${entryNotional.toFixed(2)}`}
+          />
+          <MicroStat
             label="Proceeds"
             value={`$${position.result.proceedsUsd}`}
             valueColor={pnlColor}
           />
+          <MicroStat
+            label="Origination fee"
+            value={`$${parseFloat(position.fees.originationFeeUsd).toFixed(2)}`}
+          />
           <MicroStat label="Total fees" value={`$${position.fees.totalFeesUsd}`} />
+          <MicroStat
+            label="Entry leverage"
+            value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
+          />
           <MicroStat
             label="Effective leverage"
             value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}

@@ -152,6 +152,18 @@ export function Hero() {
           View docs →
         </a>
       </div>
+
+      <p
+        style={{
+          marginTop: 14,
+          fontSize: 11,
+          color: 'var(--text-dim)',
+          lineHeight: 1.4,
+          maxWidth: 520,
+        }}
+      >
+        Sandbox execution speed differs from production.
+      </p>
     </section>
   )
 }
