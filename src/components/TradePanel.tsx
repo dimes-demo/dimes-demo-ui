@@ -152,7 +152,12 @@ export function TradePanel({
     }
   }, [stubKey, createWriteError, verifyError, createReceiptError, removePendingStub])
 
-  // Track promoted offer expiry — the 15s matters while the wallet is open
+  useEffect(() => {
+    if (verifyError || createWriteError || createReceiptError) {
+      clearOffer()
+    }
+  }, [verifyError, createWriteError, createReceiptError, clearOffer])
+
   const [isOfferExpired, setIsOfferExpired] = useState(false)
   useEffect(() => {
     if (!promotedOffer) {
@@ -685,26 +690,39 @@ export function TradePanel({
         )}
 
         {draft && !createSuccess && !isDemoMode && !isMarketMoved && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            {!canCreate && (
+          isOfferExpired ? (
+            <div style={{ marginTop: 12 }}>
               <Button
-                variant="ghost"
+                variant="primary"
                 fullWidth
-                onClick={handleApprove}
-                disabled={approvePending || approveConfirming}
+                onClick={() => {
+                  clearOffer()
+                  resetApprove()
+                  handleGetQuote()
+                }}
               >
-                {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
+                Quote expired — re-quote
               </Button>
-            )}
-            <Button
-              variant="primary"
-              fullWidth
-              onClick={handleCreate}
-              disabled={!canCreate || isPromoting || createPending || createConfirming || (walletOpen && isOfferExpired)}
-            >
-              {walletOpen && isOfferExpired
-                ? 'Quote expired'
-                : createConfirming
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              {!canCreate && (
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  onClick={handleApprove}
+                  disabled={approvePending || approveConfirming}
+                >
+                  {approveConfirming ? 'Confirming…' : approvePending ? 'Approving…' : 'Approve USDC'}
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleCreate}
+                disabled={!canCreate || isPromoting || createPending || createConfirming}
+              >
+                {createConfirming
                   ? 'Confirming…'
                   : createPending
                     ? 'Confirm in wallet…'
@@ -713,8 +731,9 @@ export function TradePanel({
                       : isPromoting
                         ? 'Creating…'
                         : 'Create position'}
-            </Button>
-          </div>
+              </Button>
+            </div>
+          )
         )}
 
       </div>
