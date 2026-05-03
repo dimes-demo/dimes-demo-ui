@@ -1,5 +1,5 @@
 import { useReducer, useCallback, useRef } from 'react';
-import { createDraftQuote, promoteDraftQuote } from '../api/offers';
+import { createOffer, createDraftQuote, promoteDraftQuote } from '../api/offers';
 import { ApiError } from '../api/client';
 import { MARKET_MOVED_CODES } from '../api/quote-error-hints';
 import type { CreateOfferParams, Offer } from '../api/types';
@@ -14,7 +14,7 @@ export type TradeState =
   | { phase: 'loading-draft' }
   | { phase: 'draft-ready'; draft: Offer; quotedAt: number }
   | { phase: 'promoting'; draft: Offer; quotedAt: number }
-  | { phase: 'promoted'; draft: Offer; promotedOffer: Offer; quotedAt: number }
+  | { phase: 'promoted'; draft: Offer; promotedOffer: Offer; correctedFrom?: Offer; quotedAt: number }
   | { phase: 'market-moved'; originalDraft: Offer; newDraft: Offer; retryCount: number; quotedAt: number }
   | { phase: 'error'; error: unknown; draft?: Offer };
 
@@ -22,7 +22,7 @@ type Action =
   | { type: 'LOADING' }
   | { type: 'DRAFT_READY'; draft: Offer; quotedAt: number }
   | { type: 'PROMOTING'; draft: Offer; quotedAt: number }
-  | { type: 'PROMOTED'; draft: Offer; promotedOffer: Offer; quotedAt: number }
+  | { type: 'PROMOTED'; draft: Offer; promotedOffer: Offer; correctedFrom?: Offer; quotedAt: number }
   | { type: 'MARKET_MOVED'; originalDraft: Offer; newDraft: Offer; retryCount: number; quotedAt: number }
   | { type: 'ERROR'; error: unknown; draft?: Offer }
   | { type: 'RESET' };
@@ -36,7 +36,13 @@ function reducer(_state: TradeState, action: Action): TradeState {
     case 'PROMOTING':
       return { phase: 'promoting', draft: action.draft, quotedAt: action.quotedAt };
     case 'PROMOTED':
-      return { phase: 'promoted', draft: action.draft, promotedOffer: action.promotedOffer, quotedAt: action.quotedAt };
+      return {
+        phase: 'promoted',
+        draft: action.draft,
+        promotedOffer: action.promotedOffer,
+        correctedFrom: action.correctedFrom,
+        quotedAt: action.quotedAt,
+      };
     case 'MARKET_MOVED':
       return {
         phase: 'market-moved',
@@ -60,7 +66,7 @@ export interface UseTradeMachineParams {
   slippageBps: number;
 }
 
-function buildOfferParams(params: UseTradeMachineParams): CreateOfferParams {
+export function buildOfferParams(params: UseTradeMachineParams): CreateOfferParams {
   const leverageBps = Math.round(params.leverageBps / LEVERAGE_STEP_BPS) * LEVERAGE_STEP_BPS;
   const notionalUsdPips = Math.round(params.collateralUsd * leverageBps);
   return {
@@ -121,6 +127,24 @@ export function useTradeMachine() {
     }
   }, []);
 
+  const correctAndPromote = useCallback(async (originalDraft: Offer, adjustedParams: CreateOfferParams) => {
+    dispatch({ type: 'PROMOTING', draft: originalDraft, quotedAt: quotedAtRef.current });
+    lastParamsRef.current = adjustedParams;
+    try {
+      const promotedOffer = await createOffer(adjustedParams);
+      quotedAtRef.current = Date.now();
+      dispatch({
+        type: 'PROMOTED',
+        draft: promotedOffer,
+        promotedOffer,
+        correctedFrom: originalDraft,
+        quotedAt: quotedAtRef.current,
+      });
+    } catch (err) {
+      dispatch({ type: 'ERROR', error: err });
+    }
+  }, []);
+
   const acceptChanges = useCallback(async (newDraft: Offer, retryCount: number) => {
     await promote(newDraft, retryCount);
   }, [promote]);
@@ -131,5 +155,5 @@ export function useTradeMachine() {
     quotedAtRef.current = 0;
   }, []);
 
-  return { state, getDraft, promote, acceptChanges, reset };
+  return { state, getDraft, promote, correctAndPromote, acceptChanges, reset };
 }

@@ -20,7 +20,6 @@ export const MARKET_MOVED_CODES = new Set([
   'quote_entry_bid_depth_too_low',
   'quote_entry_depth_too_low',
   'quote_entry_spread_too_wide',
-  'quote_side_capacity_exceeded',
 ]);
 
 export type QuoteHint =
@@ -59,12 +58,16 @@ function resolveMaxCollateralHint(
   const capacityPips = num(params, capacityKey);
   const minNotionalPips = num(params, 'minNotionalUsdPips');
 
+  const fromServer =
+    serverMaxCollateralPips !== null ? pipsToUsd(serverMaxCollateralPips) : null;
+  const fromCapacity =
+    capacityPips !== null
+      ? notionalPipsToCollateralUsd(capacityPips, context.leverageBps)
+      : null;
   const maxCollateralUsd =
-    serverMaxCollateralPips !== null
-      ? pipsToUsd(serverMaxCollateralPips)
-      : capacityPips !== null
-        ? notionalPipsToCollateralUsd(capacityPips, context.leverageBps)
-        : null;
+    fromServer !== null && fromCapacity !== null
+      ? Math.min(fromServer, fromCapacity)
+      : fromServer ?? fromCapacity;
 
   const minCollateralUsd =
     minNotionalPips !== null

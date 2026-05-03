@@ -20,7 +20,7 @@ export function StatRow({
         padding: '6px 0',
         borderLeft: changed ? '2px solid #F5A623' : '2px solid transparent',
         paddingLeft: changed ? 8 : 0,
-        transition: 'border-color 0.3s ease, padding-left 0.3s ease',
+        transition: 'border-color 0.4s ease, padding-left 0.4s ease',
       }}
     >
       <span style={{ color: 'var(--text-muted)', fontSize: 13, whiteSpace: 'nowrap' }}>
@@ -37,6 +37,7 @@ export function StatRow({
       />
       {changed && (
         <span
+          className="stat-row-diff-in"
           style={{
             color: 'var(--text-dim)',
             fontSize: 12,
@@ -49,14 +50,17 @@ export function StatRow({
         </span>
       )}
       {changed && (
-        <span style={{ color: 'var(--text-dim)', fontSize: 11 }}>→</span>
+        <span className="stat-row-diff-in" style={{ color: 'var(--text-dim)', fontSize: 11, animationDelay: '60ms' }}>→</span>
       )}
       <span
+        className={changed ? 'stat-row-diff-in' : undefined}
         style={{
           color: changed ? '#F5A623' : (valueColor || 'var(--text)'),
           fontSize: 13,
           fontWeight: 500,
           whiteSpace: 'nowrap',
+          transition: 'color 0.3s ease',
+          ...(changed ? { animationDelay: '120ms' } : {}),
         }}
       >
         {value}

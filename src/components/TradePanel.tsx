@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
 import { leverageMaxBps } from '../api/types'
-import { useTradeMachine } from '../hooks/useTradeMachine'
+import { useTradeMachine, buildOfferParams } from '../hooks/useTradeMachine'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -77,7 +77,8 @@ export function TradePanel({
     query: { enabled: !!address },
   })
 
-  const { state: tradeState, getDraft, promote, acceptChanges, reset: resetTrade } = useTradeMachine()
+  const [isAutoCorrectingRef] = useState(() => ({ current: false }))
+  const { state: tradeState, getDraft, promote, correctAndPromote, acceptChanges, reset: resetTrade } = useTradeMachine()
 
   const draft = tradeState.phase === 'draft-ready' ? tradeState.draft
     : tradeState.phase === 'promoting' ? tradeState.draft
@@ -92,10 +93,13 @@ export function TradePanel({
     || tradeState.phase === 'promoted' || tradeState.phase === 'market-moved')
     ? tradeState.quotedAt : undefined
 
+  const correctedFrom = tradeState.phase === 'promoted' ? tradeState.correctedFrom : undefined
+
   const offerLoading = tradeState.phase === 'loading-draft'
   const offerError = tradeState.phase === 'error' ? tradeState.error : null
   const isPromoting = tradeState.phase === 'promoting'
   const isMarketMoved = tradeState.phase === 'market-moved'
+  const isCorrecting = isPromoting && isAutoCorrectingRef.current
 
   const clearOffer = resetTrade
   const {
@@ -163,6 +167,7 @@ export function TradePanel({
   const prevPromotedRef = useRef<string | null>(null)
   useEffect(() => {
     if (!promotedOffer) return
+    isAutoCorrectingRef.current = false
     if (prevPromotedRef.current === promotedOffer.id) return
     prevPromotedRef.current = promotedOffer.id
     if (promotedOffer.onChainPositionKey) {
@@ -236,22 +241,35 @@ export function TradePanel({
   useEffect(() => {
     if (!offerError) return
 
-    setErrorPulseNonce((n) => n + 1)
-
     const adj = adjustmentRef.current
-    if (!adj) return
-    if (Math.abs(adj.toValue - adj.fromValue) < 1e-4) return
+    const errorDraft = tradeState.phase === 'error' ? tradeState.draft : undefined
+    const hasAdjustment = adj && Math.abs(adj.toValue - adj.fromValue) >= 1e-4
 
+    if (!hasAdjustment) {
+      isAutoCorrectingRef.current = false
+      setErrorPulseNonce((n) => n + 1)
+      return
+    }
+
+    isAutoCorrectingRef.current = true
+
+    let adjustedCollateral = Number(collateralUsd) || 0
+    let adjustedLeverage = leverageBps
+    let adjustedSlippage = slippageBps
     let toValue = adj.toValue
+
     if (adj.field === 'collateral') {
       setCollateralUsd(adj.toValue.toFixed(2))
+      adjustedCollateral = adj.toValue
     } else if (adj.field === 'leverage') {
       const round = adj.reason === 'clamp-max' ? 'down' : 'up'
       toValue = clampLeverageToMarket(adj.toValue, market, side, round)
       setLeverageBps(toValue)
+      adjustedLeverage = toValue
     } else if (adj.field === 'slippage') {
       setSlippageBps(adj.toValue)
       setAdvancedOpen(true)
+      adjustedSlippage = adj.toValue
     }
     correctionNonceRef.current += 1
     setCorrection({
@@ -260,6 +278,20 @@ export function TradePanel({
       toValue,
       nonce: correctionNonceRef.current,
     })
+
+    const adjustedTradeParams = {
+      marketTicker: market.ticker,
+      effectiveSide: side,
+      leverageBps: adjustedLeverage,
+      collateralUsd: adjustedCollateral,
+      slippageBps: adjustedSlippage,
+    }
+
+    if (errorDraft) {
+      correctAndPromote(errorDraft, buildOfferParams(adjustedTradeParams))
+    } else {
+      getDraft(adjustedTradeParams)
+    }
 
   }, [offerError])
 
@@ -421,7 +453,7 @@ export function TradePanel({
                 placeholder="0.00"
                 leadingSlot="$"
               />
-              {correction?.field === 'collateral' && (
+              {correction?.field === 'collateral' && !isAutoCorrectingRef.current && (
                 <span
                   key={`corr-coll-${correction.nonce}`}
                   className="correction-overlay"
@@ -465,7 +497,7 @@ export function TradePanel({
             onChange={(v) => { setLeverageBps(v); clearOffer(); }}
             maxViableStep={maxViableLev}
           />
-          {correction?.field === 'leverage' && (
+          {correction?.field === 'leverage' && !isAutoCorrectingRef.current && (
             <span
               key={`corr-lev-${correction.nonce}`}
               className="correction-overlay"
@@ -517,7 +549,7 @@ export function TradePanel({
                       aria-label="Custom slippage percent"
                     />
                     <span className="adv__custom-suffix">%</span>
-                    {correction?.field === 'slippage' && (
+                    {correction?.field === 'slippage' && !isAutoCorrectingRef.current && (
                       <span
                         key={`corr-slip-${correction.nonce}`}
                         className="correction-overlay"
@@ -551,7 +583,8 @@ export function TradePanel({
         {/* Get quote */}
         <div style={{ marginTop: 18, position: 'relative' }}>
           <Button
-            variant="primary"
+            variant={draft && !createSuccess ? 'ghost' : 'primary'}
+            className="get-quote-btn"
             fullWidth
             disabled={!canGetQuote || offerLoading}
             onClick={handleGetQuote}
@@ -562,7 +595,7 @@ export function TradePanel({
                 ? 'Get quote'
                 : 'Connect wallet to trade'}
           </Button>
-          {correction && (
+          {correction && !isAutoCorrectingRef.current && (
             <span
               key={`cta-${correction.nonce}`}
               className="cta-breath"
@@ -571,14 +604,16 @@ export function TradePanel({
           )}
         </div>
 
-        {!offerHint && <ErrorBanner error={offerError} onDismiss={clearOffer} />}
-        <QuoteErrorHint
-          hint={offerHint}
-          adjustment={adjustment}
-          market={market}
-          side={side}
-          leverageBps={leverageBps}
-        />
+        {!offerHint && !isAutoCorrectingRef.current && <ErrorBanner error={offerError} onDismiss={clearOffer} />}
+        {!isAutoCorrectingRef.current && (
+          <QuoteErrorHint
+            hint={offerHint}
+            adjustment={adjustment}
+            market={market}
+            side={side}
+            leverageBps={leverageBps}
+          />
+        )}
         <ErrorBanner
           error={verifyError ?? createWriteError ?? createReceiptErrorObj}
           onDismiss={resetCreate}
@@ -594,7 +629,7 @@ export function TradePanel({
           <QuoteDetails
             offer={walletOpen ? promotedOffer! : draft}
             hideExpiry={!walletOpen}
-            previousOffer={isMarketMoved ? tradeState.originalDraft : undefined}
+            previousOffer={isMarketMoved ? tradeState.originalDraft : correctedFrom}
             quotedAt={quotedAt}
             onRefresh={handleGetQuote}
           />
@@ -669,9 +704,11 @@ export function TradePanel({
                   ? 'Confirming…'
                   : createPending
                     ? 'Confirm in wallet…'
-                    : isPromoting
-                      ? 'Creating…'
-                      : 'Create position'}
+                    : isCorrecting
+                      ? 'Adjusting…'
+                      : isPromoting
+                        ? 'Creating…'
+                        : 'Create position'}
             </Button>
           </div>
         )}

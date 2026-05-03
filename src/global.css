@@ -88,6 +88,10 @@ textarea {
   border-color: var(--border);
 }
 
+.get-quote-btn.btn {
+  transition: background 0.35s ease, color 0.35s ease, border-color 0.35s ease;
+}
+
 .btn--side-yes {
   background: transparent;
   color: var(--text-muted);
@@ -747,6 +751,15 @@ textarea {
 [data-correcting='true'] .leverage-fill,
 [data-correcting='true'] .leverage-thumb {
   transition: width 400ms var(--correction-ease), left 400ms var(--correction-ease) !important;
+}
+
+.stat-row-diff-in {
+  animation: statRowDiffIn 350ms var(--correction-ease) both;
+}
+
+@keyframes statRowDiffIn {
+  0% { opacity: 0; transform: translateX(6px); }
+  100% { opacity: 1; transform: translateX(0); }
 }
 
 /* ---------------------------------------------------------------------------

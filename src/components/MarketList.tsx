@@ -36,7 +36,8 @@ const STATUS_DESCRIPTIONS: Record<string, string> = {
 
 function rejectionReadable(code: string | null | undefined) {
   if (!code) return 'Not eligible for new positions'
-  return code.replace(/^OFFER_/, '').replace(/_/g, ' ').toLowerCase()
+  const stripped = code.replace(/^quote_/i, '').replace(/_/g, ' ').toLowerCase()
+  return stripped.charAt(0).toUpperCase() + stripped.slice(1)
 }
 
 export function MarketList({
@@ -253,7 +254,7 @@ export function MarketList({
                 <col style={{ width: 'auto' }} />
                 <col style={{ width: 90 }} />
                 <col style={{ width: 90 }} />
-                <col style={{ width: 90 }} />
+                <col style={{ width: 140 }} />
                 <col style={{ width: 90 }} />
                 <col style={{ width: 60 }} />
               </colgroup>
@@ -350,7 +351,7 @@ function MarketRow({
 
   const firstTdStyle: React.CSSProperties = {
     ...tdStyle,
-    maxWidth: 200,
+    maxWidth: 180,
     boxShadow: isSelected ? 'inset 3px 0 0 var(--yellow)' : 'none',
   }
 
@@ -423,7 +424,7 @@ function MarketRow({
           {market.status}
         </span>
       </td>
-      <td style={{ ...tdStyle, textAlign: 'center' }}>
+      <td style={{ ...tdStyle, textAlign: 'center', overflow: 'visible' }}>
         {market.acceptingNewPositions ? (
           <span
             title="Accepting new leveraged positions"
@@ -452,6 +453,7 @@ function MarketRow({
               borderRadius: 0,
               padding: '2px 8px',
               cursor: 'help',
+              whiteSpace: 'nowrap',
             }}
           >
             {market.rejectionReasonCode
