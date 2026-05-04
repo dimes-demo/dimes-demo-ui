@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
@@ -101,7 +101,6 @@ export function TradePanel({
   const isMarketMoved = tradeState.phase === 'market-moved'
   const isCorrecting = isPromoting && isAutoCorrectingRef.current
 
-  const clearOffer = resetTrade
   const {
     approve,
     isPending: approvePending,
@@ -123,6 +122,10 @@ export function TradePanel({
     verifyError,
     reset: resetCreate,
   } = useCreatePosition()
+  const clearOffer = useCallback(() => {
+    resetTrade()
+    resetCreate()
+  }, [resetTrade, resetCreate])
   const { allowance, refetch: refetchAllowance } = useCheckAllowance(
     address,
     draft?.polygonVaultContractAddress as `0x${string}` | undefined,
