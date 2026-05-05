@@ -140,8 +140,9 @@ export function TradePanel({
   useEffect(() => {
     if (createSuccess) {
       queryClient.invalidateQueries({ queryKey: ['positions'] })
+      onClose()
     }
-  }, [createSuccess, queryClient])
+  }, [createSuccess, queryClient, onClose])
 
   const stubKey = promotedOffer?.onChainPositionKey
   useEffect(() => {
@@ -716,23 +717,6 @@ export function TradePanel({
           </div>
         )}
 
-        {createSuccess && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: '12px 16px',
-              borderRadius: 'var(--radius)',
-              background: 'var(--green-soft)',
-              border: '1px solid var(--green-border)',
-              color: 'var(--green)',
-              fontSize: 'var(--fs-sm)',
-              fontWeight: 500,
-              textAlign: 'center',
-            }}
-          >
-            Position created successfully.
-          </div>
-        )}
       </div>
     </CardShell>
   )

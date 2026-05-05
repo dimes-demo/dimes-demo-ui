@@ -763,6 +763,19 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------------
+   Live-data value flash — subtle highlight on polling change.
+   -------------------------------------------------------------------------- */
+
+.micro-stat-flash {
+  animation: microStatFlash 600ms ease-out both;
+}
+
+@keyframes microStatFlash {
+  0% { background-color: rgba(238, 255, 0, 0.12); }
+  100% { background-color: transparent; }
+}
+
+/* ---------------------------------------------------------------------------
    Mobile breakpoint.
    -------------------------------------------------------------------------- */
 

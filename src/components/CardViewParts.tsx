@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useRef, useState, useEffect } from 'react'
 import type { ViewMode } from '../hooks/useViewMode'
 
 export function ViewToggle({
@@ -69,6 +69,16 @@ export function MicroStat({
   value: string
   valueColor?: string
 }) {
+  const prevRef = useRef(value)
+  const [flashKey, setFlashKey] = useState(0)
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value
+      setFlashKey((k) => k + 1)
+    }
+  }, [value])
+
   return (
     <div style={{ minWidth: 0 }}>
       <div
@@ -86,6 +96,8 @@ export function MicroStat({
         {label}
       </div>
       <div
+        key={flashKey}
+        className={flashKey > 0 ? 'micro-stat-flash' : undefined}
         style={{
           fontSize: 15,
           fontWeight: 500,
@@ -94,6 +106,7 @@ export function MicroStat({
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
+          borderRadius: 2,
         }}
       >
         {value}
