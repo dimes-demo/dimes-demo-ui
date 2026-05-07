@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain } from 'wagmi'
+import { config } from './config'
 import { useAutoAuth } from './hooks/useAutoAuth'
 import { useAuthStore } from './store/auth'
 import type { Market } from './api/types'
@@ -35,6 +36,16 @@ function MarketsTitle({ count }: { count?: number }) {
 
 function App() {
   const { isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain } = useSwitchChain()
+  const expectedChainId = config.chains[0].id
+
+  useEffect(() => {
+    if (isConnected && chainId !== expectedChainId) {
+      switchChain({ chainId: expectedChainId })
+    }
+  }, [isConnected, chainId, expectedChainId, switchChain])
+
   useAutoAuth()
   const jwt = useAuthStore((s) => s.jwt)
   const [selectedMarket, setSelectedMarket] = useState<Market | null>(null)

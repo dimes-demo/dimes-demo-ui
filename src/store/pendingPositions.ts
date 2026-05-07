@@ -7,12 +7,14 @@ export interface PendingPositionStub {
   leverageBps: number;
   collateralUsd: string;
   createdAt: number;
+  failed?: boolean;
 }
 
 interface PendingPositionsState {
   stubs: PendingPositionStub[];
   add: (stub: PendingPositionStub) => void;
   remove: (key: string) => void;
+  markFailed: (key: string) => void;
   pruneMatched: (keys: string[]) => void;
 }
 
@@ -30,6 +32,12 @@ export const usePendingPositionsStore = create<PendingPositionsState>((set) => (
     }),
   remove: (key) =>
     set((state) => ({ stubs: state.stubs.filter((s) => s.key !== normalizeKey(key)) })),
+  markFailed: (key) =>
+    set((state) => ({
+      stubs: state.stubs.map((s) =>
+        s.key === normalizeKey(key) ? { ...s, failed: true } : s,
+      ),
+    })),
   pruneMatched: (keys) =>
     set((state) => {
       const matched = new Set(keys.map(normalizeKey));
