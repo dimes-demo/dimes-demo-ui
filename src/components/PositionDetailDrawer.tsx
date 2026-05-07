@@ -12,6 +12,7 @@ import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
 import { formatSlippageBps } from '../utils/format'
+import { isResolved, marketLeverageX } from '../utils/resolution-display'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { StatGroup, PnlHero } from './CardViewParts'
@@ -294,7 +295,9 @@ function OpenPositionDetail({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
-  const isFullyDeleveraged = position.current.leverageBps <= 10000
+  const positionValueUsd = parseFloat(position.current.positionValueUsd)
+  const currentMarketLeverage = marketLeverageX(position.current)
+  const isFullyDeleveraged = currentMarketLeverage <= 1
 
   const currentPrice = parseFloat(position.current.markPriceUsd)
   const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
@@ -453,7 +456,11 @@ function OpenPositionDetail({
             value={`$${parseFloat(position.current.collateralUsd).toFixed(2)}`}
           />
           <StatRow
-            label="Current Notional"
+            label="Position Value"
+            value={`$${positionValueUsd.toFixed(2)}`}
+          />
+          <StatRow
+            label="Book Notional"
             value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
           />
           {!isFullyDeleveraged && (
@@ -504,7 +511,7 @@ function OpenPositionDetail({
           />
           <StatRow
             label="Current"
-            value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+            value={`${currentMarketLeverage.toFixed(1)}x`}
           />
           <StatRow
             label="Weighted"
@@ -517,7 +524,10 @@ function OpenPositionDetail({
 
         <StatGroup label="Timing" last>
           {!isVoided && (
-            <StatRow label="Time to Resolution" value={timeDisplay} />
+            <StatRow
+              label="Time to Resolution"
+              value={isResolved(position.timing) ? '—' : timeDisplay}
+            />
           )}
           <StatRow label="Market Status" value={isVoided ? 'Voided' : position.timing.marketStatus} />
           {position.timing.isSettlementPending && (
@@ -678,15 +688,22 @@ function ClosedPositionDetail({
         />
 
         <StatGroup
-          label="Pricing"
+          label="Entry"
           accent="rgba(255,255,255,0.08)"
           accentText="var(--text-dim)"
         >
+          <StatRow label="Collateral" value={`$${position.entry.collateralUsd}`} />
+          <StatRow label="Notional" value={`$${position.entry.notionalUsd}`} />
           <StatRow label="Quote Price" value={`$${position.entry.priceUsd}`} />
           <StatRow
             label="Filled Price"
             value={filledPrice ? `$${filledPrice}` : 'Pending fill'}
             valueColor={filledPrice ? undefined : 'var(--text-muted)'}
+          />
+          <StatRow
+            label="Execution Slippage"
+            value={slippageText ?? 'Pending fill'}
+            valueColor={slippageColor}
           />
         </StatGroup>
 
@@ -696,23 +713,25 @@ function ClosedPositionDetail({
           accentText="var(--text-dim)"
         >
           <StatRow
-            label="Realized PnL / ROE"
-            value={`${pnlPrefix}$${Math.abs(realizedPnl).toFixed(2)} (${pnlPrefix}${roePct.toFixed(1)}%)`}
-            valueColor={pnlColor}
-          />
-          <StatRow
             label="Proceeds"
             value={`$${position.result.proceedsUsd}`}
             valueColor={pnlColor}
           />
+          <StatRow label="Close Reason" value={reason} />
+          <StatRow
+            label="Closed At"
+            value={new Date(position.result.closedAt).toLocaleString()}
+          />
+        </StatGroup>
+
+        <StatGroup
+          label="Fees"
+          accent="rgba(255,255,255,0.08)"
+          accentText="var(--text-dim)"
+        >
           <StatRow label="Total Fees" value={`$${position.fees.totalFeesUsd}`} />
           <StatRow label="Origination Fee" value={`$${position.fees.originationFeeUsd}`} />
           <StatRow label="Lifetime Fee" value={`$${position.fees.totalLifetimeFeeUsd}`} />
-          <StatRow
-            label="Execution Slippage"
-            value={slippageText ?? 'Pending fill'}
-            valueColor={slippageColor}
-          />
         </StatGroup>
 
         <StatGroup
@@ -726,7 +745,7 @@ function ClosedPositionDetail({
             value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
           />
           <StatRow
-            label="Effective"
+            label="Weighted"
             value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
           />
           <div style={{ marginTop: 10 }}>

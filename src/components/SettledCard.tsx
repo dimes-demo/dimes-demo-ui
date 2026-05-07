@@ -132,6 +132,7 @@ export function SettledCard({
           }}
         >
           <MicroStat label="Entry price" value={`$${position.entry.priceUsd}`} />
+          <MicroStat label="Entry collateral" value={`$${position.entry.collateralUsd}`} />
           <MicroStat
             label="Proceeds"
             value={`$${position.result.proceedsUsd}`}
@@ -139,7 +140,11 @@ export function SettledCard({
           />
           <MicroStat label="Total fees" value={`$${position.fees.totalFeesUsd}`} />
           <MicroStat
-            label="Effective leverage"
+            label="Entry leverage"
+            value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
+          />
+          <MicroStat
+            label="Weighted leverage"
             value={`${(position.effectiveLeverageBps / 10000).toFixed(1)}x`}
           />
         </div>

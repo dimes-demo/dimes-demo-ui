@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Market } from '../api/types'
 import { computeCapacityBounds } from '../utils/capacity'
 import { formatUsd } from '../utils/format'
@@ -8,13 +8,26 @@ interface Props {
   side: 'yes' | 'no'
   leverageBps: number
   collateralUsd: number
+  onClampCollateral?: (maxUsd: number) => void
 }
 
-export function CapacityGuide({ market, side, leverageBps, collateralUsd }: Props) {
+export function CapacityGuide({ market, side, leverageBps, collateralUsd, onClampCollateral }: Props) {
   const bounds = useMemo(
     () => computeCapacityBounds(market, side, leverageBps, collateralUsd),
     [market, side, leverageBps, collateralUsd],
   )
+
+  const overCapacity = bounds.maxCollateralUsd != null && bounds.isViable && collateralUsd > bounds.maxCollateralUsd
+  const prevOverCapacityRef = useRef(false)
+
+  useEffect(() => {
+    const wasOver = prevOverCapacityRef.current
+    prevOverCapacityRef.current = overCapacity
+
+    if (overCapacity && !wasOver && onClampCollateral) {
+      onClampCollateral(Math.floor(bounds.maxCollateralUsd * 100) / 100)
+    }
+  }, [overCapacity, bounds.maxCollateralUsd, onClampCollateral])
 
   if (bounds.maxCollateralUsd == null) return null
 
@@ -40,7 +53,6 @@ export function CapacityGuide({ market, side, leverageBps, collateralUsd }: Prop
     )
   }
 
-  const overCapacity = collateralUsd > bounds.maxCollateralUsd
   const underMinimum = collateralUsd > 0 && collateralUsd < bounds.minCollateralUsd
   const fillPct = bounds.utilizationPct ?? 0
 
