@@ -1,47 +1,12 @@
 import { camelizeKeys } from '../utils/format';
 import { useAuthStore } from '../store/auth';
 import { requestAuthToken } from './auth';
-
-/**
- * Minimal HTTP client for the Dimes prediction-markets API.
- *
- * - `apiFetch<T>(path)`                – returns a single-object response as T.
- * - `apiFetchList<T>(path)`            – unwraps `{ data: T[] }` into `T[]`.
- * - `apiFetchListWithPagination<T>`    – returns `{ data, hasMore }`.
- * - `apiFetchPublic<T>(path)`          – like `apiFetch` but without the
- *                                         Authorization header (for
- *                                         /tokens and /demo-token).
- *
- * Authenticated requests get a `Bearer <jwt>` header from the Zustand auth
- * store. On a 401 response, the client silently refreshes the token once
- * and retries. Responses are JSON and their keys are camelCased before
- * returning to callers. Errors throw `ApiError` with a best-effort message.
- */
+import { DimesApiError } from '@dimes-dot-fi/sdk';
 
 const API_BASE =
   import.meta.env.VITE_API_URL || 'https://api-sandbox.dimes.fi';
 
-export class ApiError extends Error {
-  public readonly status: number;
-  public readonly code: string | null;
-  public readonly type: string | null;
-  public readonly params: Record<string, unknown> | null;
-
-  constructor(
-    status: number,
-    code: string | null,
-    type: string | null,
-    message: string,
-    params: Record<string, unknown> | null = null,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = code;
-    this.type = type;
-    this.params = params;
-  }
-}
+export { DimesApiError as ApiError };
 
 interface ApiErrorBody {
   error?: {
@@ -69,7 +34,7 @@ async function throwFromResponse(response: Response): Promise<never> {
     rawParams && typeof rawParams === 'object'
       ? camelizeKeys<Record<string, unknown>>(rawParams)
       : null;
-  throw new ApiError(response.status, code, type, message, params);
+  throw new DimesApiError({ status: response.status, code: code ?? 'unknown_error', type, message: message ?? 'Unknown error', params });
 }
 
 function getAuthHeaders(): Record<string, string> {

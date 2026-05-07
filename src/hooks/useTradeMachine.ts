@@ -1,10 +1,14 @@
 import { useReducer, useCallback, useRef } from 'react';
-import { createOffer, createDraftQuote, promoteDraftQuote } from '../api/offers';
-import { ApiError } from '../api/client';
-import { MARKET_MOVED_CODES } from '../api/quote-error-hints';
-import type { CreateOfferParams, Offer } from '../api/types';
+import {
+  DimesClient,
+  DimesApiError,
+  ApiKeyAuth,
+  marketMovedCodes,
+  buildQuoteParams,
+} from '@dimes-dot-fi/sdk';
+import type { CreateOfferParams, Offer } from '@dimes-dot-fi/sdk';
+import { useAuthStore } from '../store/auth';
 
-const LEVERAGE_STEP_BPS = 2500;
 const MAX_MARKET_MOVED_RETRIES = 3;
 
 // ── State types ──
@@ -66,21 +70,19 @@ export interface UseTradeMachineParams {
   slippageBps: number;
 }
 
-export function buildOfferParams(params: UseTradeMachineParams): CreateOfferParams {
-  const leverageBps = Math.round(params.leverageBps / LEVERAGE_STEP_BPS) * LEVERAGE_STEP_BPS;
-  const notionalUsdPips = Math.round(params.collateralUsd * leverageBps);
-  return {
-    marketTicker: params.marketTicker,
-    effectiveSide: params.effectiveSide,
-    leverageBps,
-    notionalAmountUsdPips: notionalUsdPips.toString(),
-    slippageBps: params.slippageBps,
-  };
+function getClient(): DimesClient {
+  const jwt = useAuthStore.getState().jwt;
+  return new DimesClient({
+    baseUrl: import.meta.env.VITE_API_URL || 'https://api-sandbox.dimes.fi',
+    auth: { getHeaders: async () => jwt ? { Authorization: `Bearer ${jwt}` } : ({}) },
+  });
 }
 
 function isMarketMovedError(err: unknown): boolean {
-  return err instanceof ApiError && !!err.code && MARKET_MOVED_CODES.has(err.code);
+  return err instanceof DimesApiError && marketMovedCodes.has(err.code);
 }
+
+export { buildQuoteParams };
 
 export function useTradeMachine() {
   const [state, dispatch] = useReducer(reducer, { phase: 'idle' } as TradeState);
@@ -89,10 +91,17 @@ export function useTradeMachine() {
 
   const getDraft = useCallback(async (params: UseTradeMachineParams) => {
     dispatch({ type: 'LOADING' });
-    const offerParams = buildOfferParams(params);
+    const offerParams = buildQuoteParams({
+      marketTicker: params.marketTicker,
+      side: params.effectiveSide,
+      collateralUsd: params.collateralUsd,
+      leverageBps: params.leverageBps,
+      slippageBps: params.slippageBps,
+    });
     lastParamsRef.current = offerParams;
     try {
-      const draft = await createDraftQuote(offerParams);
+      const client = getClient();
+      const draft = await client.createDraftQuote(offerParams);
       quotedAtRef.current = Date.now();
       dispatch({ type: 'DRAFT_READY', draft, quotedAt: quotedAtRef.current });
     } catch (err) {
@@ -104,12 +113,14 @@ export function useTradeMachine() {
     const qa = quotedAtRef.current;
     dispatch({ type: 'PROMOTING', draft, quotedAt: qa });
     try {
-      const promotedOffer = await promoteDraftQuote(draft.id);
+      const client = getClient();
+      const promotedOffer = await client.promoteDraftQuote(draft.id);
       dispatch({ type: 'PROMOTED', draft, promotedOffer, quotedAt: qa });
     } catch (err) {
       if (isMarketMovedError(err) && retryCount < MAX_MARKET_MOVED_RETRIES && lastParamsRef.current) {
         try {
-          const newDraft = await createDraftQuote(lastParamsRef.current);
+          const client = getClient();
+          const newDraft = await client.createDraftQuote(lastParamsRef.current);
           quotedAtRef.current = Date.now();
           dispatch({
             type: 'MARKET_MOVED',
@@ -131,7 +142,8 @@ export function useTradeMachine() {
     dispatch({ type: 'PROMOTING', draft: originalDraft, quotedAt: quotedAtRef.current });
     lastParamsRef.current = adjustedParams;
     try {
-      const promotedOffer = await createOffer(adjustedParams);
+      const client = getClient();
+      const promotedOffer = await client.createQuote(adjustedParams);
       quotedAtRef.current = Date.now();
       dispatch({
         type: 'PROMOTED',

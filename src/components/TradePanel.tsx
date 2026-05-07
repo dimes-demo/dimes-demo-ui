@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
 import { leverageMaxBps } from '../api/types'
-import { useTradeMachine, buildOfferParams } from '../hooks/useTradeMachine'
+import { useTradeMachine, buildQuoteParams } from '../hooks/useTradeMachine'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -292,7 +292,7 @@ export function TradePanel({
     }
 
     if (errorDraft) {
-      correctAndPromote(errorDraft, buildOfferParams(adjustedTradeParams))
+      correctAndPromote(errorDraft, buildQuoteParams(adjustedTradeParams))
     } else {
       getDraft(adjustedTradeParams)
     }
