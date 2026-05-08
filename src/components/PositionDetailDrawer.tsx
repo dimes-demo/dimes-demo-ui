@@ -229,13 +229,16 @@ function OpenPositionDetail({
   const isVoided = position.timing.isVoided && position.timing.isSettlementPending
   const canAct = (isPendingPosition || isOpenPos) && !isUnwindingPos && !isVoided && !isDemoMode
 
-  const isBusy = cancelMutation.isPending || cancelMutation.isSuccess || isCloseSigning || isCloseConfirming
+  const cancelSucceeded = cancelMutation.isSuccess && cancelMutation.data === 'cancelled'
+  const cancelAlreadyInFlight = cancelMutation.isSuccess && cancelMutation.data === 'already_cancelling'
+  const isBusy = cancelMutation.isPending || cancelSucceeded || isCloseSigning || isCloseConfirming
   const actionError: unknown = isPendingPosition
     ? cancelMutation.error
     : closeSimError ?? closeChainError ?? closeReceiptError
 
   const handleAction = () => {
     if (isBusy) return
+    if (cancelAlreadyInFlight) cancelMutation.reset()
     if (isPendingPosition) {
       cancelMutation.mutate(position.id)
       return
@@ -253,7 +256,8 @@ function OpenPositionDetail({
 
   const buttonLabel = (() => {
     if (cancelMutation.isPending) return 'Cancelling...'
-    if (cancelMutation.isSuccess) return 'Cancel requested'
+    if (cancelSucceeded || cancelAlreadyInFlight) return 'Cancel requested'
+    if (cancelMutation.error) return 'Retry cancel'
     if (isCloseSigning) return 'Confirm in wallet...'
     if (isCloseConfirming) return 'Closing...'
     if (isCloseConfirmed) return 'Close requested'

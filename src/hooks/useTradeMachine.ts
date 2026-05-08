@@ -2,7 +2,6 @@ import { useReducer, useCallback, useRef } from 'react';
 import {
   DimesClient,
   DimesApiError,
-  ApiKeyAuth,
   marketMovedCodes,
   buildQuoteParams,
 } from '@dimes-dot-fi/sdk';
@@ -79,7 +78,11 @@ function getClient(): DimesClient {
 }
 
 function isMarketMovedError(err: unknown): boolean {
-  return err instanceof DimesApiError && marketMovedCodes.has(err.code);
+  if (err instanceof DimesApiError) return marketMovedCodes.has(err.code);
+  if (err && typeof err === 'object' && 'code' in err) {
+    return marketMovedCodes.has((err as { code: string }).code);
+  }
+  return false;
 }
 
 export { buildQuoteParams };

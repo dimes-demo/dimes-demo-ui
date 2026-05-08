@@ -13,7 +13,6 @@ import {
   USDC_ADDRESS,
 } from '../contract/hooks'
 import { isDemoMode } from '../api/auth'
-import { ApiError } from '../api/client'
 import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
 import { maxViableLeverageBps } from '../utils/capacity'
 import { CapacityGuide } from './CapacityGuide'
@@ -78,6 +77,7 @@ export function TradePanel({
   })
 
   const [isAutoCorrectingRef] = useState(() => ({ current: false }))
+  const [hasAutoRetriedRef] = useState(() => ({ current: false }))
   const { state: tradeState, getDraft, promote, correctAndPromote, acceptChanges, reset: resetTrade } = useTradeMachine()
 
   const draft = tradeState.phase === 'draft-ready' ? tradeState.draft
@@ -212,6 +212,7 @@ export function TradePanel({
 
   const handleGetQuote = () => {
     if (!canGetQuote) return
+    hasAutoRetriedRef.current = false
     getDraft({
       marketTicker: market.ticker,
       effectiveSide: side,
@@ -221,9 +222,12 @@ export function TradePanel({
     })
   }
 
+  const apiErr = offerError && typeof offerError === 'object' && 'code' in offerError
+    ? offerError as { code: string; params: Record<string, unknown> | null }
+    : null
   const offerHint = quoteErrorHint(
-    offerError instanceof ApiError ? offerError.code : null,
-    offerError instanceof ApiError ? offerError.params : null,
+    apiErr?.code ?? null,
+    apiErr?.params ?? null,
     { leverageBps },
   )
 
@@ -251,15 +255,15 @@ export function TradePanel({
     if (!offerError) return
 
     const adj = adjustmentRef.current
-    const errorDraft = tradeState.phase === 'error' ? tradeState.draft : undefined
     const hasAdjustment = adj && Math.abs(adj.toValue - adj.fromValue) >= 1e-4
 
-    if (!hasAdjustment) {
+    if (!hasAdjustment || hasAutoRetriedRef.current) {
       isAutoCorrectingRef.current = false
       setErrorPulseNonce((n) => n + 1)
       return
     }
 
+    hasAutoRetriedRef.current = true
     isAutoCorrectingRef.current = true
 
     let adjustedCollateral = Number(collateralUsd) || 0
@@ -288,18 +292,15 @@ export function TradePanel({
       nonce: correctionNonceRef.current,
     })
 
-    const adjustedTradeParams = {
-      marketTicker: market.ticker,
-      effectiveSide: side,
-      leverageBps: adjustedLeverage,
-      collateralUsd: adjustedCollateral,
-      slippageBps: adjustedSlippage,
-    }
-
+    const errorDraft = tradeState.phase === 'error' ? tradeState.draft : undefined
     if (errorDraft) {
-      correctAndPromote(errorDraft, buildQuoteParams(adjustedTradeParams))
-    } else {
-      getDraft(adjustedTradeParams)
+      correctAndPromote(errorDraft, buildQuoteParams({
+        marketTicker: market.ticker,
+        side,
+        leverageBps: adjustedLeverage,
+        collateralUsd: adjustedCollateral,
+        slippageBps: adjustedSlippage,
+      }))
     }
 
   }, [offerError])
