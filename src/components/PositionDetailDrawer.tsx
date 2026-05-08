@@ -12,6 +12,7 @@ import { useRequestClose } from '../contract/hooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
 import { formatSlippageBps } from '../utils/format'
+import { isResolved, marketLeverageX } from '../utils/resolution-display'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
 import { StatGroup, PnlHero } from './CardViewParts'
@@ -294,7 +295,9 @@ function OpenPositionDetail({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
-  const isFullyDeleveraged = position.current.leverageBps <= 10000
+  const positionValueUsd = parseFloat(position.current.positionValueUsd)
+  const currentMarketLeverage = marketLeverageX(position.current)
+  const isFullyDeleveraged = currentMarketLeverage <= 1
 
   const currentPrice = parseFloat(position.current.markPriceUsd)
   const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
@@ -453,7 +456,11 @@ function OpenPositionDetail({
             value={`$${parseFloat(position.current.collateralUsd).toFixed(2)}`}
           />
           <StatRow
-            label="Current Notional"
+            label="Position Value"
+            value={`$${positionValueUsd.toFixed(2)}`}
+          />
+          <StatRow
+            label="Book Notional"
             value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
           />
           {!isFullyDeleveraged && (
@@ -504,7 +511,7 @@ function OpenPositionDetail({
           />
           <StatRow
             label="Current"
-            value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+            value={`${currentMarketLeverage.toFixed(1)}x`}
           />
           <StatRow
             label="Weighted"
@@ -517,7 +524,10 @@ function OpenPositionDetail({
 
         <StatGroup label="Timing" last>
           {!isVoided && (
-            <StatRow label="Time to Resolution" value={timeDisplay} />
+            <StatRow
+              label="Time to Resolution"
+              value={isResolved(position.timing) ? '—' : timeDisplay}
+            />
           )}
           <StatRow label="Market Status" value={isVoided ? 'Voided' : position.timing.marketStatus} />
           {position.timing.isSettlementPending && (

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { MicroStat } from './CardViewParts'
 import type { OpenPosition } from '../api/types'
 import { CardShell } from './CardShell'
+import { isResolved, marketLeverageX } from '../utils/resolution-display'
 
 export function PositionCard({
   position,
@@ -30,16 +31,11 @@ export function PositionCard({
 
   const isYes = position.side === 'yes'
   const pnlValue = parseFloat(position.current.unrealizedPnlUsd)
-  const netPnlColor = (() => {
-    const accruedFees =
-      parseFloat(position.fees.accruedLifetimeFeeUsd) +
-      parseFloat(position.fees.pendingLifetimeFeeUsd)
-    return pnlValue - accruedFees >= 0 ? 'var(--green)' : 'var(--red)'
-  })()
   const accruedFees =
     parseFloat(position.fees.accruedLifetimeFeeUsd) +
     parseFloat(position.fees.pendingLifetimeFeeUsd)
   const netPnlValue = pnlValue - accruedFees
+  const netPnlColor = netPnlValue >= 0 ? 'var(--green)' : 'var(--red)'
   const netPnlPrefix = netPnlValue >= 0 ? '+' : ''
   const entryCollateral = parseFloat(position.entry.collateralUsd)
   const netRoePct = entryCollateral > 0 ? (netPnlValue / entryCollateral) * 100 : 0
@@ -53,7 +49,9 @@ export function PositionCard({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
-  const isFullyDeleveraged = position.current.leverageBps <= 10000
+  const positionValueUsd = parseFloat(position.current.positionValueUsd)
+  const currentMarketLeverage = marketLeverageX(position.current)
+  const isFullyDeleveraged = currentMarketLeverage <= 1
 
   const currentPrice = parseFloat(position.current.markPriceUsd)
   const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
@@ -67,8 +65,6 @@ export function PositionCard({
       distancePctDisplay = `${pct.toFixed(1)}%`
     }
   }
-
-  const positionValueUsd = parseFloat(position.current.positionValueUsd)
 
   return (
     <CardShell
@@ -239,34 +235,25 @@ export function PositionCard({
             >
               {position.side}
             </span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: isVoided ? '#A78BFA'
-                  : position.status === 'open' ? 'var(--green)'
-                  : isUnwindingPosition ? '#5B9CF5'
-                  : isInFlight ? '#F5A623'
-                  : 'var(--text-muted)',
-                background: isVoided ? 'rgba(167,139,250,0.08)'
-                  : position.status === 'open' ? 'var(--green-soft)'
-                  : isUnwindingPosition ? 'rgba(91,156,245,0.08)'
-                  : isInFlight ? 'rgba(245,166,35,0.08)'
-                  : 'rgba(136,136,136,0.08)',
-                border: `1px solid ${
-                  isVoided ? 'rgba(167,139,250,0.2)'
-                  : position.status === 'open' ? 'rgba(68,255,151,0.2)'
-                  : isUnwindingPosition ? 'rgba(91,156,245,0.2)'
-                  : isInFlight ? 'rgba(245,166,35,0.2)'
-                  : 'rgba(136,136,136,0.2)'
-                }`,
-                borderRadius: 0,
-                padding: '2px 8px',
-                textTransform: 'uppercase',
-              }}
-            >
-              {isVoided ? 'voided' : position.status === 'pending' ? 'created' : position.status}
-            </span>
+            {(() => {
+              const tone = statusTagTone(position, isVoided, isUnwindingPosition, isInFlight)
+              return (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: tone.color,
+                    background: tone.bg,
+                    border: `1px solid ${tone.border}`,
+                    borderRadius: 0,
+                    padding: '2px 8px',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {statusTagText(position)}
+                </span>
+              )
+            })()}
           </div>
         </div>
 
@@ -288,30 +275,29 @@ export function PositionCard({
             valueColor={isVoided ? '#A78BFA' : undefined}
           />
           <MicroStat
-            label="Current notional"
-            value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
-          />
-          <MicroStat
             label="Position value"
             value={`$${positionValueUsd.toFixed(2)}`}
+          />
+          <MicroStat
+            label="Book notional"
+            value={`$${parseFloat(position.current.notionalUsd).toFixed(2)}`}
           />
           <MicroStat
             label="Net PnL"
             value={`${netPnlPrefix}$${Math.abs(netPnlValue).toFixed(2)} (${netPnlPrefix}${netRoePct.toFixed(1)}%)`}
             valueColor={netPnlColor}
           />
-          {isVoided ? (
-            <MicroStat label="Settlement" value="Pending" valueColor="#A78BFA" />
-          ) : (
-            <MicroStat label="Time to resolution" value={timeDisplay} />
-          )}
+          <MicroStat
+            label="Time to resolution"
+            value={isResolved(position.timing) ? '—' : timeDisplay}
+          />
           <MicroStat
             label="Entry leverage"
             value={`${(position.entry.leverageBps / 10000).toFixed(1)}x`}
           />
           <MicroStat
             label="Current leverage"
-            value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+            value={`${currentMarketLeverage.toFixed(1)}x`}
           />
           {!isVoided && (
             <>
@@ -386,4 +372,48 @@ export function PositionIdRow({
       )}
     </div>
   )
+}
+
+const settlingStatuses = new Set(['closed', 'determined', 'finalized'])
+
+function isPendingResolution(position: OpenPosition): boolean {
+  return position.timing.timeToCloseMinutes === 0
+    && position.timing.marketStatus === 'active'
+    && !position.timing.isSettlementPending
+}
+
+function isAmberStatus(position: OpenPosition): boolean {
+  return position.timing.isSettlementPending
+    || settlingStatuses.has(position.timing.marketStatus)
+    || isPendingResolution(position)
+}
+
+function statusTagText(position: OpenPosition): string {
+  if (position.timing.isVoided) return 'voided'
+  if (position.timing.isSettlementPending) return 'settling'
+  if (settlingStatuses.has(position.timing.marketStatus)) return 'resolving'
+  if (isPendingResolution(position)) return 'pending'
+  if (position.status === 'pending') return 'created'
+  return position.status
+}
+
+type StatusTone = { color: string; bg: string; border: string }
+
+const tones: Record<string, StatusTone> = {
+  purple: { color: '#A78BFA', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.2)' },
+  amber:  { color: '#F5A623', bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)' },
+  green:  { color: 'var(--green)', bg: 'var(--green-soft)',  border: 'rgba(68,255,151,0.2)' },
+  blue:   { color: '#5B9CF5', bg: 'rgba(91,156,245,0.08)',  border: 'rgba(91,156,245,0.2)' },
+  muted:  { color: 'var(--text-muted)', bg: 'rgba(136,136,136,0.08)', border: 'rgba(136,136,136,0.2)' },
+}
+
+function statusTagTone(
+  position: OpenPosition, isVoided: boolean, isUnwinding: boolean, isInFlight: boolean,
+): StatusTone {
+  if (isVoided) return tones.purple
+  if (isAmberStatus(position)) return tones.amber
+  if (position.status === 'open') return tones.green
+  if (isUnwinding) return tones.blue
+  if (isInFlight) return tones.amber
+  return tones.muted
 }

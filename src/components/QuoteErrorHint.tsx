@@ -41,7 +41,7 @@ export function QuoteErrorHint({ hint, adjustment, market, side, leverageBps }: 
         text =
           adjustment.reason === 'raise-min'
             ? `Raised leverage to ${adjustment.toLabel} — try again.`
-            : `Capped leverage at ${adjustment.toLabel} — try again.`
+            : `Max leverage updated to ${adjustment.toLabel} — get a new quote.`
         break
       case 'slippage':
         text = `Raised slippage tolerance to ${adjustment.toLabel} — try again.`

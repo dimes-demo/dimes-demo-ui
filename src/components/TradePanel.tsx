@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAccount, useBalance } from 'wagmi'
 import type { Market, MarketLeverage } from '../api/types'
 import { leverageMaxBps } from '../api/types'
-import { useTradeMachine, buildQuoteParams } from '../hooks/useTradeMachine'
+import { useTradeMachine } from '../hooks/useTradeMachine'
 import { useValueTween } from '../hooks/useValueTween'
 import { usePendingPositionsStore } from '../store/pendingPositions'
 import {
@@ -70,6 +70,7 @@ export function TradePanel({
   const queryClient = useQueryClient()
   const addPendingStub = usePendingPositionsStore((s) => s.add)
   const removePendingStub = usePendingPositionsStore((s) => s.remove)
+  const markPendingStubFailed = usePendingPositionsStore((s) => s.markFailed)
   const { address, isConnected } = useAccount()
   const { data: usdcBalance } = useBalance({
     address,
@@ -78,7 +79,7 @@ export function TradePanel({
   })
 
   const [isAutoCorrectingRef] = useState(() => ({ current: false }))
-  const { state: tradeState, getDraft, promote, correctAndPromote, acceptChanges, reset: resetTrade } = useTradeMachine()
+  const { state: tradeState, getDraft, promote, acceptChanges, reset: resetTrade } = useTradeMachine()
 
   const draft = tradeState.phase === 'draft-ready' ? tradeState.draft
     : tradeState.phase === 'promoting' ? tradeState.draft
@@ -137,10 +138,15 @@ export function TradePanel({
 
   const canGetQuote = isConnected && collateralUsd && Number(collateralUsd) > 0
 
+  const [showSuccess, setShowSuccess] = useState(false)
+  const successDelayMs = 1500
+
   useEffect(() => {
     if (createSuccess) {
       queryClient.invalidateQueries({ queryKey: ['positions'] })
-      onClose()
+      setShowSuccess(true)
+      const timer = setTimeout(() => onClose(), successDelayMs)
+      return () => clearTimeout(timer)
     }
   }, [createSuccess, queryClient, onClose])
 
@@ -148,9 +154,9 @@ export function TradePanel({
   useEffect(() => {
     if (!stubKey) return
     if (createWriteError || verifyError || createReceiptError) {
-      removePendingStub(stubKey)
+      markPendingStubFailed(stubKey)
     }
-  }, [stubKey, createWriteError, verifyError, createReceiptError, removePendingStub])
+  }, [stubKey, createWriteError, verifyError, createReceiptError, markPendingStubFailed])
 
   // Track promoted offer expiry — the 15s matters while the wallet is open
   const [isOfferExpired, setIsOfferExpired] = useState(false)
@@ -165,7 +171,8 @@ export function TradePanel({
     return () => clearInterval(interval)
   }, [promotedOffer])
 
-  const walletOpen = !!(promotedOffer && (createPending || createConfirming))
+  const txInFlight = !!(promotedOffer && (createPending || createConfirming))
+  const walletOpen = txInFlight
 
   // Trigger wallet signing as soon as promotion succeeds
   const prevPromotedRef = useRef<string | null>(null)
@@ -246,7 +253,6 @@ export function TradePanel({
     if (!offerError) return
 
     const adj = adjustmentRef.current
-    const errorDraft = tradeState.phase === 'error' ? tradeState.draft : undefined
     const hasAdjustment = adj && Math.abs(adj.toValue - adj.fromValue) >= 1e-4
 
     if (!hasAdjustment) {
@@ -255,25 +261,18 @@ export function TradePanel({
       return
     }
 
-    isAutoCorrectingRef.current = true
-
-    let adjustedCollateral = Number(collateralUsd) || 0
-    let adjustedLeverage = leverageBps
-    let adjustedSlippage = slippageBps
+    isAutoCorrectingRef.current = false
     let toValue = adj.toValue
 
     if (adj.field === 'collateral') {
       setCollateralUsd(adj.toValue.toFixed(2))
-      adjustedCollateral = adj.toValue
     } else if (adj.field === 'leverage') {
       const round = adj.reason === 'clamp-max' ? 'down' : 'up'
       toValue = clampLeverageToMarket(adj.toValue, market, side, round)
       setLeverageBps(toValue)
-      adjustedLeverage = toValue
     } else if (adj.field === 'slippage') {
       setSlippageBps(adj.toValue)
       setAdvancedOpen(true)
-      adjustedSlippage = adj.toValue
     }
     correctionNonceRef.current += 1
     setCorrection({
@@ -282,20 +281,6 @@ export function TradePanel({
       toValue,
       nonce: correctionNonceRef.current,
     })
-
-    const adjustedTradeParams = {
-      marketTicker: market.ticker,
-      effectiveSide: side,
-      leverageBps: adjustedLeverage,
-      collateralUsd: adjustedCollateral,
-      slippageBps: adjustedSlippage,
-    }
-
-    if (errorDraft) {
-      correctAndPromote(errorDraft, buildQuoteParams(adjustedTradeParams))
-    } else {
-      getDraft(adjustedTradeParams)
-    }
 
   }, [offerError])
 
@@ -404,13 +389,14 @@ export function TradePanel({
           <button
             type="button"
             onClick={onClose}
+            disabled={txInFlight}
             aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-dim)',
+              color: txInFlight ? 'var(--border)' : 'var(--text-dim)',
               fontSize: 18,
-              cursor: 'pointer',
+              cursor: txInFlight ? 'not-allowed' : 'pointer',
               padding: '0 4px',
               lineHeight: 1,
               flexShrink: 0,
@@ -515,6 +501,7 @@ export function TradePanel({
           side={side}
           leverageBps={leverageBps}
           collateralUsd={Number(collateralUsd) || 0}
+          onClampCollateral={(maxUsd) => setCollateralUsd(maxUsd.toFixed(2))}
         />
 
         {/* Advanced */}
@@ -700,19 +687,21 @@ export function TradePanel({
               variant="primary"
               fullWidth
               onClick={handleCreate}
-              disabled={!canCreate || isPromoting || createPending || createConfirming || (walletOpen && isOfferExpired)}
+              disabled={!canCreate || isPromoting || createPending || createConfirming || showSuccess || (walletOpen && isOfferExpired)}
             >
-              {walletOpen && isOfferExpired
-                ? 'Quote expired'
-                : createConfirming
-                  ? 'Confirming…'
-                  : createPending
-                    ? 'Confirm in wallet…'
-                    : isCorrecting
-                      ? 'Adjusting…'
-                      : isPromoting
-                        ? 'Creating…'
-                        : 'Create position'}
+              {showSuccess
+                ? 'Position created ✓'
+                : walletOpen && isOfferExpired
+                  ? 'Quote expired'
+                  : createConfirming
+                    ? 'Confirming…'
+                    : createPending
+                      ? 'Confirm in wallet…'
+                      : isCorrecting
+                        ? 'Adjusting…'
+                        : isPromoting
+                          ? 'Creating…'
+                          : 'Create position'}
             </Button>
           </div>
         )}

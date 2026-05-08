@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { PendingPositionStub } from '../store/pendingPositions'
+import { usePendingPositionsStore } from '../store/pendingPositions'
 import { useMarket } from '../hooks/useMarketTitle'
 import { CardShell } from './CardShell'
 
@@ -7,6 +8,7 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
   const market = useMarket(stub.marketTicker)
   const displayTitle = market?.title || stub.marketTicker
   const [marketIdCopied, setMarketIdCopied] = useState(false)
+  const removePendingStub = usePendingPositionsStore((s) => s.remove)
   const onCopyMarketId = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!market?.id) return
@@ -24,14 +26,14 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
   return (
     <CardShell variant="yellow">
       <div style={{ position: 'relative', zIndex: 1, padding: '22px 24px 20px' }}>
-        {/* Broadcast banner */}
+        {/* Status banner */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            background: 'rgba(245,166,35,0.08)',
-            border: '1px solid rgba(245,166,35,0.22)',
+            background: stub.failed ? 'rgba(224,82,82,0.08)' : 'rgba(245,166,35,0.08)',
+            border: `1px solid ${stub.failed ? 'rgba(224,82,82,0.25)' : 'rgba(245,166,35,0.22)'}`,
             borderRadius: 0,
             padding: '10px 12px',
             marginBottom: 16,
@@ -44,39 +46,61 @@ export function PendingPositionCard({ stub }: { stub: PendingPositionStub }) {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: '#F5A623',
-              animation: 'pendingPulse 1.1s ease-in-out infinite',
+              background: stub.failed ? '#E05252' : '#F5A623',
+              animation: stub.failed ? undefined : 'pendingPulse 1.1s ease-in-out infinite',
               flexShrink: 0,
             }}
           />
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 12, color: '#F5A623', fontWeight: 600 }}>
-              Broadcasting to the network
+            <div style={{ fontSize: 12, color: stub.failed ? '#F5A1A1' : '#F5A623', fontWeight: 600 }}>
+              {stub.failed ? 'Transaction failed — check your wallet' : 'Opening position'}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              Your position will appear here shortly…
-            </div>
+            {!stub.failed && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                Awaiting on-chain confirmation on Polygon…
+              </div>
+            )}
           </div>
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 2,
-              background: 'rgba(245,166,35,0.15)',
-              overflow: 'hidden',
-            }}
-          >
+          {stub.failed && (
+            <button
+              onClick={() => removePendingStub(stub.key)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(245,161,161,0.6)',
+                cursor: 'pointer',
+                padding: 4,
+                flexShrink: 0,
+                lineHeight: 1,
+                fontSize: 16,
+              }}
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          )}
+          {!stub.failed && (
             <div
               style={{
-                height: '100%',
-                width: '40%',
-                background: '#F5A623',
-                animation: 'pendingSlide 1.6s ease-in-out infinite',
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 2,
+                background: 'rgba(245,166,35,0.15)',
+                overflow: 'hidden',
               }}
-            />
-          </div>
+            >
+              <div
+                style={{
+                  height: '100%',
+                  width: '40%',
+                  background: '#F5A623',
+                  animation: 'pendingSlide 1.6s ease-in-out infinite',
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Header: ticker + side chip */}
