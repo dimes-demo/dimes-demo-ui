@@ -294,7 +294,7 @@ function OpenPositionDetail({
     timeDisplay = days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`
   }
 
-  const isFullyDeleveraged = position.current.leverageBps <= 10000
+  const isFullyDeleveraged = position.current.bookLeverageBps <= 10000
 
   const currentPrice = parseFloat(position.current.markPriceUsd)
   const liquidationPrice = parseFloat(position.risk.currentLiquidationPriceUsd)
@@ -504,7 +504,7 @@ function OpenPositionDetail({
           />
           <StatRow
             label="Current"
-            value={`${(position.current.leverageBps / 10000).toFixed(1)}x`}
+            value={`${(position.current.bookLeverageBps / 10000).toFixed(1)}x`}
           />
           <StatRow
             label="Weighted"
