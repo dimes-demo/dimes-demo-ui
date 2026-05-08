@@ -1,17 +1,20 @@
-import { ApiError } from '../api/client';
 import { formatApiError } from '../api/error-messages';
 import { formatContractError } from '../contract/error-messages';
+
+function isApiError(err: unknown): err is { status: number; code: string; message: string } {
+  return err != null && typeof err === 'object' && 'status' in err && 'code' in err;
+}
 
 export function ErrorBanner({ error, onDismiss }: { error: unknown; onDismiss?: () => void }) {
   if (!error) return null;
 
-  const apiError = error instanceof ApiError ? error : null;
+  const apiError = isApiError(error) ? error : null;
   const status = apiError?.status;
 
   let message: string;
   let code: string | undefined;
   if (apiError) {
-    message = formatApiError(apiError);
+    message = formatApiError(error);
     code = apiError.code ?? undefined;
   } else {
     const formatted = formatContractError(error);

@@ -72,12 +72,19 @@ async function request<T>(path: string, options?: RequestInit, auth = true): Pro
       if (!retryResponse.ok) {
         await throwFromResponse(retryResponse);
       }
+      if (retryResponse.status === 204 || retryResponse.headers.get('content-length') === '0') {
+        return undefined as T;
+      }
       return camelizeKeys<T>(await retryResponse.json());
     }
   }
 
   if (!response.ok) {
     await throwFromResponse(response);
+  }
+
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T;
   }
 
   return camelizeKeys<T>(await response.json());
