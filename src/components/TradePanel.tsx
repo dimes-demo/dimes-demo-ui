@@ -23,6 +23,7 @@ import { useAuthStore } from '../store/auth'
 import { isDemoMode } from '../api/auth'
 import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
 import { maxViableLeverageBps } from '../utils/capacity'
+import { BuilderCredsPanel } from './BuilderCredsPanel'
 import { CapacityGuide } from './CapacityGuide'
 import { CardShell } from './CardShell'
 import { ErrorBanner } from './ErrorBanner'
@@ -641,6 +642,8 @@ export function TradePanel({
             </div>
           </div>
         </div>
+
+        {depositWalletMode && <BuilderCredsPanel />}
 
         {/* Get quote */}
         <div style={{ marginTop: 18, position: 'relative' }}>

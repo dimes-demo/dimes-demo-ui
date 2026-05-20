@@ -29,6 +29,11 @@ interface TokenResponse {
 
 const apiKey = import.meta.env.VITE_API_KEY as string | undefined;
 
+// Optional override for the token endpoint's base URL. Leave unset to use
+// VITE_API_URL like every other call; set this only when token minting is
+// hosted on a separate domain.
+const TOKEN_BASE_URL = import.meta.env.VITE_TOKEN_URL as string | undefined;
+
 /** True when the UI is running in demo mode (no VITE_API_KEY set). */
 export const isDemoMode = !apiKey;
 
@@ -44,15 +49,23 @@ export async function requestAuthToken(connectedWallet?: string): Promise<TokenR
     if (!connectedWallet) {
       throw new Error('requestAuthToken: wallet address required when VITE_API_KEY is set');
     }
-    return apiFetchPublic<TokenResponse>('/v1/prediction-markets/tokens', {
-      method: 'POST',
-      headers: { Authorization: `Api-Key ${apiKey}` },
-      body: JSON.stringify({ wallet_address: connectedWallet }),
-    });
+    return apiFetchPublic<TokenResponse>(
+      '/v1/prediction-markets/tokens',
+      {
+        method: 'POST',
+        headers: { Authorization: `Api-Key ${apiKey}` },
+        body: JSON.stringify({ wallet_address: connectedWallet }),
+      },
+      TOKEN_BASE_URL,
+    );
   }
 
-  return apiFetchPublic<TokenResponse>('/v1/prediction-markets/demo-token', {
-    method: 'POST',
-    body: JSON.stringify({ wallet_address: DEMO_WALLET_ADDRESS }),
-  });
+  return apiFetchPublic<TokenResponse>(
+    '/v1/prediction-markets/demo-token',
+    {
+      method: 'POST',
+      body: JSON.stringify({ wallet_address: DEMO_WALLET_ADDRESS }),
+    },
+    TOKEN_BASE_URL,
+  );
 }

@@ -7,9 +7,10 @@ import {
   getDepositWalletBatchTypedData,
   type DepositWalletCall,
 } from '@dimes-dot-fi/sdk/contract';
-import { submitRelayerBatch } from '../api/relayer';
+import { submitRelayerBatch, submitRelayerBatchDirect } from '../api/relayer';
 import { useContractInfo } from '../hooks/useContractInfo';
 import { useAuthStore } from '../store/auth';
+import { useBuilderCredsStore } from '../store/builderCreds';
 import type { Offer } from '../api/types';
 import { USDC_ADDRESS } from './hooks';
 import { recoverCreatePositionSigner, resolveExpectedSigner } from './verifySignature';
@@ -131,14 +132,28 @@ function usePushFundedBatch() {
 
     setState({ ...initialState, isConfirming: true });
 
+    const relayerParams = {
+      depositWalletAddress: depositWallet,
+      ownerAddress,
+      nonce: nonce.toString(),
+      deadline: deadline.toString(),
+      calls: toRelayerCalls(calls),
+      signature,
+    };
+
+    // Local-demo path: when the user has supplied Polymarket builder
+    // credentials, submit straight to the relayer from the browser instead
+    // of routing through the partner-API-key-guarded backend endpoint.
+    const builderCreds = useBuilderCredsStore.getState();
+
     try {
-      const result = await submitRelayerBatch({
-        depositWalletAddress: depositWallet,
-        nonce: nonce.toString(),
-        deadline: deadline.toString(),
-        calls: toRelayerCalls(calls),
-        signature,
-      });
+      const result = builderCreds.hasCreds
+        ? await submitRelayerBatchDirect(relayerParams, {
+            apiKey: builderCreds.apiKey,
+            apiSecret: builderCreds.apiSecret,
+            apiPassphrase: builderCreds.apiPassphrase,
+          })
+        : await submitRelayerBatch(relayerParams);
       setState({ ...initialState, isSuccess: true, transactionHash: result.transactionHash });
     } catch (e) {
       setState({ ...initialState, receiptError: toError(e, 'Relayer submission failed.') });

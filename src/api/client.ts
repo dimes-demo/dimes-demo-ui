@@ -53,19 +53,25 @@ async function refreshToken(): Promise<string | null> {
   return result.token;
 }
 
-async function request<T>(path: string, options?: RequestInit, auth = true): Promise<T> {
+async function request<T>(
+  path: string,
+  options?: RequestInit,
+  auth = true,
+  baseUrl?: string,
+): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(auth ? getAuthHeaders() : {}),
     ...(options?.headers as Record<string, string> | undefined),
   };
 
-  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const base = baseUrl || API_BASE;
+  const response = await fetch(`${base}${path}`, { ...options, headers });
 
   if (response.status === 401 && auth) {
     const newJwt = await refreshToken();
     if (newJwt) {
-      const retryResponse = await fetch(`${API_BASE}${path}`, {
+      const retryResponse = await fetch(`${base}${path}`, {
         ...options,
         headers: { ...headers, Authorization: `Bearer ${newJwt}` },
       });
@@ -104,12 +110,17 @@ export async function apiFetchListWithPagination<T>(
   return request<{ data: T[]; hasMore: boolean }>(path, options);
 }
 
-/** Fetch a single-object endpoint — returns the response as-is. */
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  return request<T>(path, options);
+/**
+ * Fetch a single-object endpoint — returns the response as-is.
+ *
+ * `baseUrl` overrides the default API base for this one call. Used by
+ * endpoints that may be hosted on a separate domain (e.g. the relayer).
+ */
+export async function apiFetch<T>(path: string, options?: RequestInit, baseUrl?: string): Promise<T> {
+  return request<T>(path, options, true, baseUrl);
 }
 
 /** Like `apiFetch` but skips the Authorization header. */
-export async function apiFetchPublic<T>(path: string, options?: RequestInit): Promise<T> {
-  return request<T>(path, options, false);
+export async function apiFetchPublic<T>(path: string, options?: RequestInit, baseUrl?: string): Promise<T> {
+  return request<T>(path, options, false, baseUrl);
 }
