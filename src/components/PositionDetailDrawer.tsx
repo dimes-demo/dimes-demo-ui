@@ -9,8 +9,10 @@ import { isOpenPosition, getOriginationFeeBreakdown } from '../api/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { isDemoMode } from '../api/auth'
 import { useRequestClose } from '../contract/hooks'
+import { useRequestClosePushFunded } from '../contract/pushFundedHooks'
 import { useCancelPosition } from '../hooks/useCancelPosition'
 import { useContractInfo } from '../hooks/useContractInfo'
+import { useAuthStore } from '../store/auth'
 import { formatSlippageBps } from '../utils/format'
 import { ErrorBanner } from './ErrorBanner'
 import { StatRow } from './StatRow'
@@ -203,16 +205,20 @@ function OpenPositionDetail({
   const queryClient = useQueryClient()
   const cancelMutation = useCancelPosition()
   const { data: contractInfo } = useContractInfo()
-  const {
-    requestClose,
-    isPending: isCloseSigning,
-    isConfirming: isCloseConfirming,
-    isSuccess: isCloseConfirmed,
-    error: closeChainError,
-    receiptError: closeReceiptError,
-    simulateError: closeSimError,
-    reset: resetClose,
-  } = useRequestClose()
+
+  // Deposit-wallet mode routes the close through the relayer batch.
+  const depositWalletMode = useAuthStore((s) => s.depositWalletMode)
+  const eoaClose = useRequestClose()
+  const pushFundedClose = useRequestClosePushFunded()
+  const activeClose = depositWalletMode ? pushFundedClose : eoaClose
+  const requestClose = activeClose.requestClose
+  const isCloseSigning = activeClose.isPending
+  const isCloseConfirming = activeClose.isConfirming
+  const isCloseConfirmed = activeClose.isSuccess
+  const closeChainError = activeClose.error
+  const closeReceiptError = activeClose.receiptError
+  const closeSimError = depositWalletMode ? pushFundedClose.verifyError : eoaClose.simulateError
+  const resetClose = activeClose.reset
 
   const displayTitle = position.marketTitle || position.marketTicker
   const isYes = position.side === 'yes'

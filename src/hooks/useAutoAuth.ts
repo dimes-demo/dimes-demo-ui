@@ -16,14 +16,19 @@ const REFRESH_BUFFER_MS = 60_000;
 export function useAutoAuth() {
   const { address, isConnected } = useAccount();
   const { setAuth, clearAuth } = useAuthStore();
+  const depositWalletMode = useAuthStore((s) => s.depositWalletMode);
+  const depositWalletAddress = useAuthStore((s) => s.depositWalletAddress);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
+    // In deposit-wallet mode the JWT and quotes must be scoped to the deposit
+    // wallet contract (the on-chain `msg.sender`), not the connected owner EOA.
+    const connectedAddress = isConnected && address ? address : undefined;
     const effectiveAddress = isDemoMode
       ? DEMO_WALLET_ADDRESS
-      : isConnected && address
-        ? address
-        : undefined;
+      : depositWalletMode && depositWalletAddress
+        ? depositWalletAddress
+        : connectedAddress;
 
     function clearTimer() {
       if (refreshTimer.current) {
@@ -59,5 +64,5 @@ export function useAutoAuth() {
     }
 
     return clearTimer;
-  }, [isConnected, address, setAuth, clearAuth]);
+  }, [isConnected, address, depositWalletMode, depositWalletAddress, setAuth, clearAuth]);
 }

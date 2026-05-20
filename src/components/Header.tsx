@@ -2,6 +2,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit'
 import { useDisconnect, useAccount, useBalance } from 'wagmi'
 import { useAuthStore } from '../store/auth'
 import { isDemoMode } from '../api/auth'
+import { useDepositWallet } from '../contract/useDepositWallet'
 
 function CompactConnectButton() {
   const baseBtn: React.CSSProperties = {
@@ -173,6 +174,102 @@ function DemoBadge() {
   )
 }
 
+function shortenAddress(address: string): string {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`
+}
+
+/**
+ * Opt-in toggle for the Polymarket deposit-wallet (push-funded) flow. Hidden in
+ * demo mode (the demo wallet endpoint cannot scope a JWT to an arbitrary
+ * deposit-wallet address). When the connected wallet has no deposit wallet, a
+ * disabled placeholder is shown so the capability is still discoverable.
+ */
+function DepositWalletToggle() {
+  const { available, address: depositWalletAddress, isLoading, chainSupported } = useDepositWallet()
+  const depositWalletMode = useAuthStore((s) => s.depositWalletMode)
+  const setDepositWalletMode = useAuthStore((s) => s.setDepositWalletMode)
+
+  // The deposit-wallet flow only exists on Polygon mainnet.
+  if (isDemoMode || !chainSupported) return null
+
+  if (isLoading || !available || !depositWalletAddress) {
+    return (
+      <span
+        title={
+          isLoading
+            ? 'Checking for a Polymarket deposit wallet…'
+            : 'No Polymarket deposit wallet is deployed for the connected wallet. The push-funded flow is unavailable.'
+        }
+        style={{
+          padding: '6px 12px',
+          fontSize: 12,
+          fontWeight: 600,
+          borderRadius: 0,
+          border: '1px dashed var(--border)',
+          background: 'transparent',
+          color: 'var(--text-dim)',
+          fontFamily: 'var(--font)',
+          lineHeight: 1.2,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          cursor: 'help',
+        }}
+      >
+        <span
+          style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--text-dim)', opacity: 0.5 }}
+        />
+        {isLoading ? 'Checking deposit wallet…' : 'No Deposit Wallet'}
+      </span>
+    )
+  }
+
+  const toggle = () => {
+    if (depositWalletMode) {
+      setDepositWalletMode(false, null)
+    } else {
+      setDepositWalletMode(true, depositWalletAddress)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title={
+        depositWalletMode
+          ? `Push-funded flow active — quotes and positions are scoped to deposit wallet ${depositWalletAddress}`
+          : `A Polymarket deposit wallet (${depositWalletAddress}) is available for this wallet. Enable the push-funded flow.`
+      }
+      style={{
+        padding: '6px 12px',
+        fontSize: 12,
+        fontWeight: 600,
+        borderRadius: 0,
+        border: `1px solid ${depositWalletMode ? 'var(--yellow)' : 'var(--border)'}`,
+        background: depositWalletMode ? 'var(--yellow)' : 'var(--surface-subtle)',
+        color: depositWalletMode ? 'var(--yellow-ink)' : 'var(--text)',
+        cursor: 'pointer',
+        fontFamily: 'var(--font)',
+        lineHeight: 1.2,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: '50%',
+          background: depositWalletMode ? 'var(--yellow-ink)' : 'var(--text-dim)',
+        }}
+      />
+      {depositWalletMode ? `Deposit Wallet · ${shortenAddress(depositWalletAddress)}` : 'Use Deposit Wallet'}
+    </button>
+  )
+}
+
 function DimesLogo() {
   return (
     <img
@@ -209,6 +306,7 @@ export function Header() {
         {isDemoMode && <DemoBadge />}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        {isConnected && <DepositWalletToggle />}
         {isConnected && <UsdcBalance />}
         {isConnected && (
           <button

@@ -18,6 +18,8 @@ import {
   useCreatePosition,
   USDC_ADDRESS,
 } from '../contract/hooks'
+import { useCreatePositionPushFunded } from '../contract/pushFundedHooks'
+import { useAuthStore } from '../store/auth'
 import { isDemoMode } from '../api/auth'
 import { quoteErrorHint, hintAdjustment, type CorrectedField } from '../api/quote-error-hints'
 import { maxViableLeverageBps } from '../utils/capacity'
@@ -131,17 +133,21 @@ export function TradePanel({
     receiptError: approveReceiptError,
     reset: resetApprove,
   } = useApproveUsdc()
-  const {
-    create,
-    isPending: createPending,
-    isConfirming: createConfirming,
-    isSuccess: createSuccess,
-    isReceiptError: createReceiptError,
-    receiptError: createReceiptErrorObj,
-    error: createWriteError,
-    verifyError,
-    reset: resetCreate,
-  } = useCreatePosition()
+  // Deposit-wallet mode routes position creation through the push-funded
+  // relayer batch instead of a direct `createPosition` transaction.
+  const depositWalletMode = useAuthStore((s) => s.depositWalletMode)
+  const eoaCreate = useCreatePosition()
+  const pushFundedCreate = useCreatePositionPushFunded()
+  const activeCreate = depositWalletMode ? pushFundedCreate : eoaCreate
+  const create = activeCreate.create
+  const createPending = activeCreate.isPending
+  const createConfirming = activeCreate.isConfirming
+  const createSuccess = activeCreate.isSuccess
+  const createReceiptErrorObj = activeCreate.receiptError
+  const createReceiptError = createReceiptErrorObj != null
+  const createWriteError = activeCreate.error
+  const verifyError = activeCreate.verifyError
+  const resetCreate = activeCreate.reset
   const clearOffer = useCallback(() => {
     resetTrade()
     resetCreate()
@@ -153,7 +159,8 @@ export function TradePanel({
 
   const requiredApproval = draft ? BigInt(draft.totalUserAmountUsdcUnits) : 0n
   const hasAllowance = allowance !== undefined && allowance >= requiredApproval && requiredApproval > 0n
-  const canCreate = hasAllowance || approveSuccess
+  // Deposit-wallet mode pushes funds inside the batch, so no ERC-20 approval is needed.
+  const canCreate = depositWalletMode || hasAllowance || approveSuccess
 
   const canGetQuote = isConnected && collateralUsd && Number(collateralUsd) > 0
 
