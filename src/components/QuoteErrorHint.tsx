@@ -35,7 +35,10 @@ export function QuoteErrorHint({ hint, adjustment, market, side, leverageBps }: 
   if (adjustment) {
     switch (adjustment.field) {
       case 'collateral':
-        text = `Adjusted collateral to ${adjustment.toLabel} — try again.`
+        text =
+          adjustment.reason === 'min-collateral'
+            ? `Raised collateral to the minimum ${adjustment.toLabel} — try again.`
+            : `Adjusted collateral to ${adjustment.toLabel} — try again.`
         break
       case 'leverage':
         text =
